@@ -26,7 +26,8 @@ class pc_client(object):
         # creating an empty list
         # self.NArs = [1,2,3,4]
 
-        self.NArs = [4, 7, 8]
+        # self.NArs = [1,2,3,4,5,6, 7, 8]
+        self.NArs = [5]
 
         # check is user is ready
         self.ready = input("If Ready Enter 'y': ")
@@ -133,12 +134,17 @@ class pc_client(object):
                 # seg_8 = 0
                 # seg_4 = 2
 
-                seg_1 = 2
-                # seg_2 = 0
-                seg_3 = 0
-                seg_4 = 0
+                # seg_1 = 5
+                seg_4 = 5
+                # seg_3 = 0
+                # seg_4 = 0
+                # seg_5 = 0
+                # seg_6 = 0
+                # seg_7 = 0
+                # seg_8 = 0
+                array = [seg_4]
 
-                array = [seg_1, seg_3, seg_4]
+                # array = [seg_1, seg_2, seg_3, seg_4, seg_5, seg_6, seg_7, seg_8]
 
                 # array = [seg_7,seg_8]
 
@@ -163,12 +169,17 @@ class pc_client(object):
                         if self.trial_start_reset == 1:
                             self.t0_on_trial = time.time()
                             self.trial_start_reset = 0
-                        # self.pres_single_step_response(np.array([0.0]*len(self.NArs)),10)
-                        # self.t0_on_trial = time.time()
-                        # self.pres_single_step_response(np.array([5.0]*len(self.NArs)),10)
-                        self.pres_single_ramp_response(
-                            up_rate, down_rate, upper_bound, lower_bound
+                        self.pres_single_step_response(
+                            np.array([0.0] * len(self.NArs)), 10
                         )
+                        self.t0_on_trial = time.time()
+                        self.pres_single_step_response(
+                            np.array([5.0] * len(self.NArs)), 10
+                        )
+                        # self.pres_single_ramp_response(
+                        #     up_rate, down_rate, upper_bound, lower_bound
+                        # )
+                        # self.pres_single_ramp_response_
 
                         self.trial_start_reset = 1
 
@@ -290,137 +301,145 @@ class pc_client(object):
                     break
                     exit()
 
-    # def pres_single_ramp_response(self, up_rate, down_rate, upper_bound, lower_bound):
-
-    #     # print("ramping")
-    #     t = time.time() - self.t0_on_trial  # range from 0
-    #     total = (upper_bound - lower_bound) / up_rate + (
-    #         upper_bound - lower_bound
-    #     ) / down_rate
-    #     while self.th1_flag and self.th2_flag and (t <= total):
-
-    #         try:
-    #             t = time.time() - self.t0_on_trial  # range from 0
-    #             if t <= (upper_bound - lower_bound) / up_rate:
-    #                 for i in range(len(self.NArs)):
-    #                     self.pd_array_1[i] = lower_bound + up_rate * t
-    #                     self.pm_array_1[i] = self.ard_socket(
-    #                         self.pd_array_1[i], self.client_sockets[i]
-    #                     )
-    #                     if i != len(self.NArs) - 1:
-    #                         time.sleep(5)
-
-    #             if ((upper_bound - lower_bound) / up_rate < t) and (t <= total):
-    #                 for i in range(len(self.NArs)):
-    #                     self.pd_array_1[i] = upper_bound - down_rate * (
-    #                         t - (upper_bound - lower_bound) / up_rate
-    #                     )
-    #                     self.pm_array_1[i] = self.ard_socket(
-    #                         self.pd_array_1[i], self.client_sockets[i]
-    #                     )
-    #                     if i != len(self.NArs) - 1:
-    #                         time.sleep(5)
-
-    #             # for i in range(len(self.NArs)):
-    #             #     # if i == 2 or i == 3 :
-    #             #     #     self.pm_array_1[i] = self.ard_socket(3,self.client_sockets[i])
-    #             #     # else:
-    #             #     #     self.pm_array_1[i] = self.ard_socket(self.pd_array_1[i],self.client_sockets[i])
-    #             #     self.pm_array_1[i] = self.ard_socket(
-    #             #         self.pd_array_1[i], self.client_sockets[i]
-    #             #     )
-
-    #         except KeyboardInterrupt:
-    #             break
-    #             self.th1_flag = 0
-    #             self.th2_flag = 0
-    
     def pres_single_ramp_response(self, up_rate, down_rate, upper_bound, lower_bound):
-            """
-            Performs a SEQUENTIAL ramp-up and ramp-down of the Arduinos.
-            This version includes checks for self.th1_flag to allow for safe thread termination.
-            """
-            # --- Part 1: Ramp UP, one by one ---
-            print("Starting sequential ramp UP...")
+
+        # print("ramping")
+        t = time.time() - self.t0_on_trial  # range from 0
+        total = (upper_bound - lower_bound) / up_rate + (
+            upper_bound - lower_bound
+        ) / down_rate
+        while self.th1_flag and self.th2_flag and (t <= total):
+
             try:
-                for i in range(len(self.NArs)):
-                    # Check for stop signal before starting the next ramp
-                    if not self.th1_flag:
-                        print("Stop signal received, aborting ramp sequence.")
-                        return
-                    if self.NArs[i] == 4:
-                    #     self.pm_array_1[j] = self.ard_socket(self.pd_array_1[j], self.client_sockets[j])
+                t = time.time() - self.t0_on_trial  # range from 0
+                if t <= (upper_bound - lower_bound) / up_rate:
+                    for i in range(len(self.NArs)):
+                        self.pd_array_1[i] = lower_bound + up_rate * t
+                        self.pm_array_1[i] = self.ard_socket(
+                            self.pd_array_1[i], self.client_sockets[i]
+                        )
+                        if i != len(self.NArs) - 1:
+                            time.sleep(5)
 
-                        continue  # This jumps to the next Arduino in the list
-                    print(f"--> Ramping UP Arduino {self.NArs[i]}...")
+                if ((upper_bound - lower_bound) / up_rate < t) and (t <= total):
+                    for i in range(len(self.NArs)):
+                        self.pd_array_1[i] = upper_bound - down_rate * (
+                            t - (upper_bound - lower_bound) / up_rate
+                        )
+                        self.pm_array_1[i] = self.ard_socket(
+                            self.pd_array_1[i], self.client_sockets[i]
+                        )
+                        if i != len(self.NArs) - 1:
+                            time.sleep(5)
 
-                    t0_ramp = time.time()
-                    ramp_duration = (upper_bound - lower_bound) / up_rate
+                # for i in range(len(self.NArs)):
+                #     # if i == 2 or i == 3 :
+                #     #     self.pm_array_1[i] = self.ard_socket(3,self.client_sockets[i])
+                #     # else:
+                #     #     self.pm_array_1[i] = self.ard_socket(self.pd_array_1[i],self.client_sockets[i])
+                #     self.pm_array_1[i] = self.ard_socket(
+                #         self.pd_array_1[i], self.client_sockets[i]
+                #     )
 
-                    while True:
-                        # Check for stop signal during the ramp
-                        if not self.th1_flag:
-                            print(" Stop signal received, aborting ramp sequence.")
-                            return
-
-                        t_elapsed = time.time() - t0_ramp
-                        if t_elapsed > ramp_duration:
-                            break
-
-                        self.pd_array_1[i] = lower_bound + up_rate * t_elapsed
-                        for j in range(len(self.NArs)):
-                            self.pm_array_1[j] = self.ard_socket(self.pd_array_1[j], self.client_sockets[j])
-                        time.sleep(0.02) # Small delay to prevent flooding sockets
-
-                    # After the ramp, lock the current Arduino at the final pressure
-                    print(f"    Arduino {self.NArs[i]} ramp up complete.")
-                    self.pd_array_1[i] = upper_bound
-                    # Send one last update to lock in the state
-                    for j in range(len(self.NArs)):
-                        self.pm_array_1[j] = self.ard_socket(self.pd_array_1[j], self.client_sockets[j])
-
-
-                print("\nAll Arduinos are at the upper bound. Pausing before ramp down.\n")
-                time.sleep(2.0) # Optional pause after all are ramped up
-
-                # --- Part 2: Ramp DOWN, one by one ---
-                print("Starting sequential ramp DOWN...")
-                for i in range(len(self.NArs)):
-                    # Check for stop signal before starting the next ramp
-                    if not self.th1_flag:
-                        print("Stop signal received, aborting ramp sequence.")
-                        return
-                    if self.NArs[i] == 4:
-                        continue  # This jumps to the next Arduino in the list
-                    
-                    print(f"--> Ramping DOWN Arduino {self.NArs[i]}...")
-
-                    t0_ramp = time.time()
-                    ramp_duration = (upper_bound - lower_bound) / down_rate
-
-                    while True:
-                        # Check for stop signal during the ramp
-                        if not self.th1_flag:
-                            print("Stop signal received, aborting ramp sequence.")
-                            return
-
-                        t_elapsed = time.time() - t0_ramp
-                        if t_elapsed > ramp_duration:
-                            break
-
-                        self.pd_array_1[i] = upper_bound - down_rate * t_elapsed
-                        for j in range(len(self.NArs)):
-                            self.pm_array_1[j] = self.ard_socket(self.pd_array_1[j], self.client_sockets[j])
-                        time.sleep(0.02)
-
-                    # Lock the Arduino at the lower bound after its ramp is done
-                    print(f"    Arduino {self.NArs[i]} ramp down complete.")
-                    self.pd_array_1[i] = lower_bound
-                    for j in range(len(self.NArs)):
-                        self.pm_array_1[j] = self.ard_socket(self.pd_array_1[j], self.client_sockets[j])
             except KeyboardInterrupt:
+                break
                 self.th1_flag = 0
                 self.th2_flag = 0
+
+    def pres_single_ramp_response_1(self, up_rate, down_rate, upper_bound, lower_bound):
+        """
+        Performs a SEQUENTIAL ramp-up and ramp-down of the Arduinos.
+        This version includes checks for self.th1_flag to allow for safe thread termination.
+        """
+        # --- Part 1: Ramp UP, one by one ---
+        print("Starting sequential ramp UP...")
+        try:
+            for i in range(len(self.NArs)):
+                # Check for stop signal before starting the next ramp
+                if not self.th1_flag:
+                    print("Stop signal received, aborting ramp sequence.")
+                    return
+                if self.NArs[i] == 4:
+                    #     self.pm_array_1[j] = self.ard_socket(self.pd_array_1[j], self.client_sockets[j])
+
+                    continue  # This jumps to the next Arduino in the list
+                print(f"--> Ramping UP Arduino {self.NArs[i]}...")
+
+                t0_ramp = time.time()
+                ramp_duration = (upper_bound - lower_bound) / up_rate
+
+                while True:
+                    # Check for stop signal during the ramp
+                    if not self.th1_flag:
+                        print(" Stop signal received, aborting ramp sequence.")
+                        return
+
+                    t_elapsed = time.time() - t0_ramp
+                    if t_elapsed > ramp_duration:
+                        break
+
+                    self.pd_array_1[i] = lower_bound + up_rate * t_elapsed
+                    for j in range(len(self.NArs)):
+                        self.pm_array_1[j] = self.ard_socket(
+                            self.pd_array_1[j], self.client_sockets[j]
+                        )
+                    time.sleep(0.02)  # Small delay to prevent flooding sockets
+
+                # After the ramp, lock the current Arduino at the final pressure
+                print(f"    Arduino {self.NArs[i]} ramp up complete.")
+                self.pd_array_1[i] = upper_bound
+                # Send one last update to lock in the state
+                for j in range(len(self.NArs)):
+                    self.pm_array_1[j] = self.ard_socket(
+                        self.pd_array_1[j], self.client_sockets[j]
+                    )
+
+            print("\nAll Arduinos are at the upper bound. Pausing before ramp down.\n")
+            time.sleep(2.0)  # Optional pause after all are ramped up
+
+            # --- Part 2: Ramp DOWN, one by one ---
+            print("Starting sequential ramp DOWN...")
+            for i in range(len(self.NArs)):
+                # Check for stop signal before starting the next ramp
+                if not self.th1_flag:
+                    print("Stop signal received, aborting ramp sequence.")
+                    return
+                if self.NArs[i] == 4:
+                    continue  # This jumps to the next Arduino in the list
+
+                print(f"--> Ramping DOWN Arduino {self.NArs[i]}...")
+
+                t0_ramp = time.time()
+                ramp_duration = (upper_bound - lower_bound) / down_rate
+
+                while True:
+                    # Check for stop signal during the ramp
+                    if not self.th1_flag:
+                        print("Stop signal received, aborting ramp sequence.")
+                        return
+
+                    t_elapsed = time.time() - t0_ramp
+                    if t_elapsed > ramp_duration:
+                        break
+
+                    self.pd_array_1[i] = upper_bound - down_rate * t_elapsed
+                    for j in range(len(self.NArs)):
+                        self.pm_array_1[j] = self.ard_socket(
+                            self.pd_array_1[j], self.client_sockets[j]
+                        )
+                    time.sleep(0.02)
+
+                # Lock the Arduino at the lower bound after its ramp is done
+                print(f"    Arduino {self.NArs[i]} ramp down complete.")
+                self.pd_array_1[i] = lower_bound
+                for j in range(len(self.NArs)):
+                    self.pm_array_1[j] = self.ard_socket(
+                        self.pd_array_1[j], self.client_sockets[j]
+                    )
+        except KeyboardInterrupt:
+            self.th1_flag = 0
+            self.th2_flag = 0
+
     # def pres_single_ramp_response(self, up_rate, down_rate, upper_bound, lower_bound):
     # # print("ramping")
     # t = time.time() - self.t0_on_trial  # range from 0

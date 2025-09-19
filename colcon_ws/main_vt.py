@@ -6,16 +6,12 @@ recorvery to compliant
 
 """
 #import com_test # mode 0high -- low1-pressure + low1-sensor + low2-pressure
-import vt_class
-import UIUC
 import vtech
 #import static_test
 # import sensor_test # mode 1
 # import ramp_test # mode 2
 # import step_test # mode 3
 # from time import time,sleep
-import numpy as np
-import csv
 
 from time import sleep
 def main():
@@ -43,7 +39,7 @@ def main():
 
         p_client.positionProfile_flag=3 
         p_client.flag_use_mocap=1
-        p_client.trailDuriation=120.
+        p_client.trailDuriation =600.00
 
 
         # p_client.rampRateAbs=np.radians(0.5) # 1 deg/sec
