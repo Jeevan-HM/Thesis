@@ -7,7 +7,7 @@ import zlib
 import threading 
 import socket 
 import struct 
-from  time import time, sleep
+from  time import time
 
 class pc_client(object): # using class(blueprint) to create object 
     def __init__(self): 

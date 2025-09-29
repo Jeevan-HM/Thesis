@@ -2,12 +2,6 @@
 
 import numpy as np
 import zmq
-import pickle
-import zlib
-from time import time, sleep
-import threading
-import socket
-import struct 
 
 
 context = zmq.Context()

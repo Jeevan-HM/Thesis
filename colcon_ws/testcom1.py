@@ -8,7 +8,6 @@ Created on Wed Nov  1 10:25:19 2023
 import socket
 import struct
 import time
-import random
 import csv
 
 # Set the PC's IP address and port
@@ -23,7 +22,7 @@ server_socket.listen(1)
 start_time = time.time()
 sent_count = 0
 received_count = 0
-array = [0,1,3,1,5,2,4,2,5,1,0,2,4,3,0,1,3,0,5,3,0,4,1,0,3,2,5,4,1];
+array = [0,1,3,1,5,2,4,2,5,1,0,2,4,3,0,1,3,0,5,3,0,4,1,0,3,2,5,4,1]
 #for i in range(30):
  #   array.append(random.randint(0,5))
 
@@ -32,8 +31,8 @@ csv_file='inputs.csv'
 with open(csv_file,mode='w',newline='') as file:
     writer = csv.writer(file)
     writer.writerow(array)
-k=0;
-increasing=True;
+k=0
+increasing=True
 
 while True:
     print("Waiting for Arduino connection...")

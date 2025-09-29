@@ -4,17 +4,18 @@ normal to compliant to recovery
 recovery to compliant
 """
 
-import numpy as np
-import zmq
+import datetime
+import os
 import pickle
-import zlib
-import time
-import threading
+import re
 import socket
 import struct
-import re
-import os
-import datetime
+import threading
+import time
+import zlib
+
+import numpy as np
+import zmq
 
 
 class pc_client(object):
@@ -26,14 +27,12 @@ class pc_client(object):
         # creating an empty list
         # self.NArs = [1,2,3,4]
 
-        # self.NArs = [1,2,3,4,5,6, 7, 8]
-        self.NArs = [5]
+        self.NArs = [4, 7, 8]
 
         # check is user is ready
         self.ready = input("If Ready Enter 'y': ")
 
         if self.ready == "y":
-
             self.flag_use_mocap = 1
             self.flag_control_mode = 1  # 0: baseline smc;
             # 1: smc+ilc;
@@ -78,7 +77,7 @@ class pc_client(object):
             # self.socket2.
             self.socket2.setsockopt(zmq.CONFLATE, True)
 
-            if self.flag_use_mocap == True:
+            if self.flag_use_mocap:
                 self.socket2.connect("tcp://127.0.0.1:3885")
                 print("Connected to mocap")
 
@@ -89,13 +88,14 @@ class pc_client(object):
                 [0.0] * 21
             )  # base(x y z qw qx qy qz) top(x1 y1 z1 qw1 qx1 qy1 qz1)
             self.pd_array_1 = np.array([0.0] * len(self.NArs))  # pd1
-            # self.pm_array_1=np.array([0.]*len(self.NArs)) #pm1  (psi)
-            self.pm_array_1 = [None] * len(self.NArs)
+            # Initialize pm_array_1 as a proper array that can hold the 4-element arrays returned by ard_socket
+            self.pm_array_1 = np.array([[0.0, 0.0, 0.0, 0.0]] * len(self.NArs))
             # self.pd_pm_array_2 = self.pd_pm_array_1
             # self.filt_array_wireEnco = np.array([0.]*4)
-            # assmble all to recording
+            # assemble all to recording
+            pm_flattened = self.pm_array_1.flatten()
             self.arr_comb_record = np.concatenate(
-                (self.pd_array_1, self.pm_array_1, self.array3setswithrotation),
+                (self.pd_array_1, pm_flattened, self.array3setswithrotation),
                 axis=None,
             )
             # self.arr_comb_record=np.concatenate((self.pd_pm_array_1, self.pd_pm_array_2, self.filt_array_wireEnco, self.array3setswithrotation,self.pd_pm_array_add), axis=None)
@@ -127,24 +127,18 @@ class pc_client(object):
         print("th_Pd_G")
         try:
             if self.flag_reset == 1:
-
                 # seg_5 = 0 #r1
                 # seg_6 = 0 #sens
                 # seg_7 = 0 #r2
                 # seg_8 = 0
                 # seg_4 = 2
 
-                # seg_1 = 5
-                seg_4 = 5
-                # seg_3 = 0
-                # seg_4 = 0
-                # seg_5 = 0
-                # seg_6 = 0
-                # seg_7 = 0
-                # seg_8 = 0
-                array = [seg_4]
+                seg_1 = 5
+                # seg_2 = 0
+                seg_3 = 0
+                seg_4 = 0
 
-                # array = [seg_1, seg_2, seg_3, seg_4, seg_5, seg_6, seg_7, seg_8]
+                array = [seg_1, seg_3, seg_4]
 
                 # array = [seg_7,seg_8]
 
@@ -159,7 +153,7 @@ class pc_client(object):
                 try:
                     # print("heheheh")
                     # if self.flag_use_mocap == True:
-                    # self.array3setswithrotation=self.recv_cpp_socket2()
+                    self.array3setswithrotation = self.recv_cpp_socket2()
                     up_rate = 1.0  # psi/s
                     down_rate = 1.0  # psi/s
                     lower_bound = 0.0  # psi
@@ -169,17 +163,12 @@ class pc_client(object):
                         if self.trial_start_reset == 1:
                             self.t0_on_trial = time.time()
                             self.trial_start_reset = 0
-                        self.pres_single_step_response(
-                            np.array([0.0] * len(self.NArs)), 10
+                        # self.pres_single_step_response(np.array([0.0]*len(self.NArs)),10)
+                        # self.t0_on_trial = time.time()
+                        # self.pres_single_step_response(np.array([5.0]*len(self.NArs)),10)
+                        self.pres_single_ramp_response(
+                            up_rate, down_rate, upper_bound, lower_bound
                         )
-                        self.t0_on_trial = time.time()
-                        self.pres_single_step_response(
-                            np.array([5.0] * len(self.NArs)), 10
-                        )
-                        # self.pres_single_ramp_response(
-                        #     up_rate, down_rate, upper_bound, lower_bound
-                        # )
-                        # self.pres_single_ramp_response_
 
                         self.trial_start_reset = 1
 
@@ -210,13 +199,16 @@ class pc_client(object):
         # print("Mocap Flag: ", self.flag_use_mocap)
         while self.run_event.is_set() and self.th2_flag:
             try:
-                if self.flag_use_mocap == True:
+                if self.flag_use_mocap:
                     self.array3setswithrotation = (
                         self.recv_cpp_socket2()
                     )  # ADD PUBSUB Pm Pd
                     # print(self.array3setswithrotation)
-                if self.flag_reset == 0:
-                    self.send_zipped_socket1(self.arr_comb_record)
+                # Always send data to socket1 for recording, regardless of reset flag
+                self.send_zipped_socket1(self.arr_comb_record)
+
+                # Small delay to prevent overwhelming the mocap data reception
+                time.sleep(0.005)  # 5ms delay for ~200Hz data collection rate
 
             except KeyboardInterrupt:
                 print(Exception)
@@ -233,15 +225,17 @@ class pc_client(object):
         os.makedirs(experiment_dir, exist_ok=True)
 
         # Get the next experiment number
-        existing_numbers = [
-            int(re.search(r"Test_(\d+)\.csv", f).group(1))
-            for f in os.listdir(experiment_dir)
-            if re.match(r"Test_\d+\.csv", f)
-        ]
+        existing_numbers = []
+        for f in os.listdir(experiment_dir):
+            match = re.search(r"Test_\d+_(\d+)\.csv", f)
+            if match:
+                existing_numbers.append(int(match.group(1)))
 
         # Construct and return the dynamic filename
         experiment_number = max(existing_numbers, default=0) + 1
-        return f"experiments/{experiment_date}/Test_{experiment_number}.csv"
+        return (
+            f"experiments/{experiment_date}/Test_{self.NArs[0]}_{experiment_number}.csv"
+        )
 
     def th_data_exchange_high(self):
         print("th_data_exHIGH")
@@ -255,7 +249,7 @@ class pc_client(object):
         header = ["time"]
         header += [f"pd_{n}" for n in self.NArs]
         for n in self.NArs:
-            header += [f"pm_{n}_{i+1}" for i in range(4)]
+            header += [f"pm_{n}_{i + 1}" for i in range(4)]
         # Add mocap headers for 3 bodies, each with 7 values
         mocap_labels = ["x", "y", "z", "qx", "qy", "qz", "qw"]
         for body in range(1, 4):
@@ -267,8 +261,11 @@ class pc_client(object):
             t0 = time.time()
             while self.run_event.is_set() and self.th3_flag:
                 try:
+                    # Always use the most current data for recording
+                    # Flatten pm_array_1 to match the header structure
+                    pm_flattened = self.pm_array_1.flatten()
                     self.arr_comb_record = np.concatenate(
-                        (self.pd_array_1, self.pm_array_1, self.array3setswithrotation),
+                        (self.pd_array_1, pm_flattened, self.array3setswithrotation),
                         axis=None,
                     )
                     msg = self.arr_comb_record
@@ -294,59 +291,62 @@ class pc_client(object):
                         start_time = current_time
                         received_count = 0
 
-                    if self.flag_reset == 0:
-                        self.send_zipped_socket1(self.arr_comb_record)
+                    # Always send data to socket1 for other processes
+                    self.send_zipped_socket1(self.arr_comb_record)
+
+                    # Small delay to prevent overwhelming the system and ensure proper data collection
+                    time.sleep(0.01)  # 10ms delay for ~100Hz data collection rate
 
                 except KeyboardInterrupt:
                     break
                     exit()
 
+    # def pres_single_ramp_response(self, up_rate, down_rate, upper_bound, lower_bound):
+
+    #     # print("ramping")
+    #     t = time.time() - self.t0_on_trial  # range from 0
+    #     total = (upper_bound - lower_bound) / up_rate + (
+    #         upper_bound - lower_bound
+    #     ) / down_rate
+    #     while self.th1_flag and self.th2_flag and (t <= total):
+
+    #         try:
+    #             t = time.time() - self.t0_on_trial  # range from 0
+    #             if t <= (upper_bound - lower_bound) / up_rate:
+    #                 for i in range(len(self.NArs)):
+    #                     self.pd_array_1[i] = lower_bound + up_rate * t
+    #                     self.pm_array_1[i] = self.ard_socket(
+    #                         self.pd_array_1[i], self.client_sockets[i]
+    #                     )
+    #                     if i != len(self.NArs) - 1:
+    #                         time.sleep(5)
+
+    #             if ((upper_bound - lower_bound) / up_rate < t) and (t <= total):
+    #                 for i in range(len(self.NArs)):
+    #                     self.pd_array_1[i] = upper_bound - down_rate * (
+    #                         t - (upper_bound - lower_bound) / up_rate
+    #                     )
+    #                     self.pm_array_1[i] = self.ard_socket(
+    #                         self.pd_array_1[i], self.client_sockets[i]
+    #                     )
+    #                     if i != len(self.NArs) - 1:
+    #                         time.sleep(5)
+
+    #             # for i in range(len(self.NArs)):
+    #             #     # if i == 2 or i == 3 :
+    #             #     #     self.pm_array_1[i] = self.ard_socket(3,self.client_sockets[i])
+    #             #     # else:
+    #             #     #     self.pm_array_1[i] = self.ard_socket(self.pd_array_1[i],self.client_sockets[i])
+    #             #     self.pm_array_1[i] = self.ard_socket(
+    #             #         self.pd_array_1[i], self.client_sockets[i]
+    #             #     )
+
+    #         except KeyboardInterrupt:
+    #             break
+    #             self.th1_flag = 0
+    #             self.th2_flag = 0
+
     def pres_single_ramp_response(self, up_rate, down_rate, upper_bound, lower_bound):
-
-        # print("ramping")
-        t = time.time() - self.t0_on_trial  # range from 0
-        total = (upper_bound - lower_bound) / up_rate + (
-            upper_bound - lower_bound
-        ) / down_rate
-        while self.th1_flag and self.th2_flag and (t <= total):
-
-            try:
-                t = time.time() - self.t0_on_trial  # range from 0
-                if t <= (upper_bound - lower_bound) / up_rate:
-                    for i in range(len(self.NArs)):
-                        self.pd_array_1[i] = lower_bound + up_rate * t
-                        self.pm_array_1[i] = self.ard_socket(
-                            self.pd_array_1[i], self.client_sockets[i]
-                        )
-                        if i != len(self.NArs) - 1:
-                            time.sleep(5)
-
-                if ((upper_bound - lower_bound) / up_rate < t) and (t <= total):
-                    for i in range(len(self.NArs)):
-                        self.pd_array_1[i] = upper_bound - down_rate * (
-                            t - (upper_bound - lower_bound) / up_rate
-                        )
-                        self.pm_array_1[i] = self.ard_socket(
-                            self.pd_array_1[i], self.client_sockets[i]
-                        )
-                        if i != len(self.NArs) - 1:
-                            time.sleep(5)
-
-                # for i in range(len(self.NArs)):
-                #     # if i == 2 or i == 3 :
-                #     #     self.pm_array_1[i] = self.ard_socket(3,self.client_sockets[i])
-                #     # else:
-                #     #     self.pm_array_1[i] = self.ard_socket(self.pd_array_1[i],self.client_sockets[i])
-                #     self.pm_array_1[i] = self.ard_socket(
-                #         self.pd_array_1[i], self.client_sockets[i]
-                #     )
-
-            except KeyboardInterrupt:
-                break
-                self.th1_flag = 0
-                self.th2_flag = 0
-
-    def pres_single_ramp_response_1(self, up_rate, down_rate, upper_bound, lower_bound):
         """
         Performs a SEQUENTIAL ramp-up and ramp-down of the Arduinos.
         This version includes checks for self.th1_flag to allow for safe thread termination.

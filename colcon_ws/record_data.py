@@ -7,7 +7,7 @@ This code reads data from the local socket in this PC and exports the data into 
 
 #Import Libraries:
 import numpy as np
-from time import time,sleep,gmtime, strftime
+from time import time
 #ZMQ Communication Libraries:
 import zmq
 import zlib

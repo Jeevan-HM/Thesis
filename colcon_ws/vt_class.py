@@ -9,11 +9,10 @@ import numpy as np
 import zmq
 import pickle
 import zlib
-from time import time, sleep
+from time import time
 import threading
 import socket
 import struct
-import random
 
 
 class pc_client(object):

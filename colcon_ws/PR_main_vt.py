@@ -13,7 +13,6 @@ import PR_Computing_task
 # import ramp_test # mode 2
 # import step_test # mode 3
 # from time import time,sleep
-import numpy as np
 from time import sleep
 def main():
     try:

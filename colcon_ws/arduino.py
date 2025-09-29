@@ -1,10 +1,7 @@
 import socket
 import struct
 import time
-import random
-import csv
 import numpy as np
-from sys import getsizeof
 
 pc_addr = '10.203.49.197'
 ports = []
