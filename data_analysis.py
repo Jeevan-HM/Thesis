@@ -20,7 +20,7 @@ except ImportError:
 # NOTE: All column indices are based on the CSV file structure.
 
 # -- General Settings --
-EXPERIMENTS_BASE_DIR = "/home/g1/Developer/RISE_Lab/colcon_ws/experiments"
+EXPERIMENTS_BASE_DIR = "/home/g1/Developer/RISE_Lab/experiments"
 START_TIME_OFFSET_SEC = 10  # Time in seconds to skip at the beginning of the plot
 
 # -- Column Indices --
@@ -120,7 +120,7 @@ def get_experiment():
     """
     try:
         # NOTE: You may need to adjust this path to your experiments folder.
-        experiments_base_dir = "/home/g1/Developer/RISE_Lab/colcon_ws/experiments"
+        experiments_base_dir = "/home/g1/Developer/RISE_Lab/experiments"
         if not os.path.exists(experiments_base_dir):
             raise FileNotFoundError
         folder_names = [

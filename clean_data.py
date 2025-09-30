@@ -1,45 +1,59 @@
 import os
+
 import pandas as pd
 
 # ---- CONFIGURATION ----
 
-OUTPUT_FOLDER_NAME = 'cleaned_data'
-INPUT_FODLER_NAME = '/home/g1/Developer/RISE_Lab/colcon_ws/experiments/July-10/'
+OUTPUT_FOLDER_NAME = "cleaned_data"
+INPUT_FODLER_NAME = "/home/g1/Developer/RISE_Lab/experiments/July-10/"
 # This dictionary defines all the renaming operations.
 # 'old_name': 'new_name'
 COLUMN_RENAME_MAP = {
-    'pd_4': 'Desired_pressure_segment_1_2',
-    'pd_7': 'Desired_pressure_segment_3',
-    'pd_8': 'Desired_pressure_segment_4',
-    'pm_4_1': 'Measured_pressure_Segment_4',
-    'pm_4_2': 'Measured_pressure_segment_3',
-    'pm_4_3': 'Measured_pressure_Segment_1_pouch_1',
-    'pm_4_4': 'Measured_pressure_Segment_1_pouch_2',
-    'pm_7_1': 'Measured_pressure_Segment_1_pouch_3',
-    'pm_7_2': 'Measured_pressure_Segment_1_pouch_4',
-    'pm_7_3': 'Measured_pressure_Segment_1_pouch_5',
-    'pm_7_4': 'Measured_pressure_Segment_2_pouch_1',
-    'pm_8_1': 'Measured_pressure_Segment_2_pouch_2',
-    'pm_8_2': 'Measured_pressure_Segment_2_pouch_3',
-    'pm_8_3': 'Measured_pressure_Segment_2_pouch_4',
-    'pm_8_4': 'Measured_pressure_Segment_2_pouch_5',
+    "pd_4": "Desired_pressure_segment_1_2",
+    "pd_7": "Desired_pressure_segment_3",
+    "pd_8": "Desired_pressure_segment_4",
+    "pm_4_1": "Measured_pressure_Segment_4",
+    "pm_4_2": "Measured_pressure_segment_3",
+    "pm_4_3": "Measured_pressure_Segment_1_pouch_1",
+    "pm_4_4": "Measured_pressure_Segment_1_pouch_2",
+    "pm_7_1": "Measured_pressure_Segment_1_pouch_3",
+    "pm_7_2": "Measured_pressure_Segment_1_pouch_4",
+    "pm_7_3": "Measured_pressure_Segment_1_pouch_5",
+    "pm_7_4": "Measured_pressure_Segment_2_pouch_1",
+    "pm_8_1": "Measured_pressure_Segment_2_pouch_2",
+    "pm_8_2": "Measured_pressure_Segment_2_pouch_3",
+    "pm_8_3": "Measured_pressure_Segment_2_pouch_4",
+    "pm_8_4": "Measured_pressure_Segment_2_pouch_5",
     # Rename mocap3 columns to the new generic rigid body names
-    'mocap3_x': 'mocap_rigid_body_x',
-    'mocap3_y': 'mocap_rigid_body_y',
-    'mocap3_z': 'mocap_rigid_body_z',
-    'mocap3_qx': 'mocap_rigid_body_qx',
-    'mocap3_qy': 'mocap_rigid_body_qy',
-    'mocap3_qz': 'mocap_rigid_body_qz',
-    'mocap3_qw': 'mocap_rigid_body_qw',
+    "mocap3_x": "mocap_rigid_body_x",
+    "mocap3_y": "mocap_rigid_body_y",
+    "mocap3_z": "mocap_rigid_body_z",
+    "mocap3_qx": "mocap_rigid_body_qx",
+    "mocap3_qy": "mocap_rigid_body_qy",
+    "mocap3_qz": "mocap_rigid_body_qz",
+    "mocap3_qw": "mocap_rigid_body_qw",
 }
 
 # This list contains all columns that should be completely removed.
 COLUMNS_TO_DROP = [
-    'mocap1_x', 'mocap1_y', 'mocap1_z', 'mocap1_qx', 'mocap1_qy', 'mocap1_qz', 'mocap1_qw',
-    'mocap2_x', 'mocap2_y', 'mocap2_z', 'mocap2_qx', 'mocap2_qy', 'mocap2_qz', 'mocap2_qw',
+    "mocap1_x",
+    "mocap1_y",
+    "mocap1_z",
+    "mocap1_qx",
+    "mocap1_qy",
+    "mocap1_qz",
+    "mocap1_qw",
+    "mocap2_x",
+    "mocap2_y",
+    "mocap2_z",
+    "mocap2_qx",
+    "mocap2_qy",
+    "mocap2_qz",
+    "mocap2_qw",
 ]
 
 # ---- END CONFIGURATION ----
+
 
 def process_and_clean_csv(input_filepath, output_dir):
     """
@@ -58,7 +72,7 @@ def process_and_clean_csv(input_filepath, output_dir):
         # 1. Drop the unwanted mocap columns
         # We check which columns actually exist in the dataframe to avoid errors.
         existing_cols_to_drop = [col for col in COLUMNS_TO_DROP if col in df.columns]
-        df.drop(columns=existing_cols_to_drop, inplace=True, errors='ignore')
+        df.drop(columns=existing_cols_to_drop, inplace=True, errors="ignore")
         print(f"Dropped {len(existing_cols_to_drop)} columns.")
 
         # 2. Rename the remaining columns based on the map
@@ -96,9 +110,8 @@ def main():
     print(f"Cleaned files will be saved in: {output_dir}")
     print("-" * 50)
 
-
     # --- Find and Process CSV Files ---
-    csv_files = [f for f in os.listdir(target_folder) if f.lower().endswith('.csv')]
+    csv_files = [f for f in os.listdir(target_folder) if f.lower().endswith(".csv")]
 
     if not csv_files:
         print(f"No CSV files found in '{target_folder}'.")
@@ -118,4 +131,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

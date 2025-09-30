@@ -1,5 +1,7 @@
 colcon_ws/build
 colcon_ws/log
 colcon_ws/install
-colcon_ws/venv
+venv
 colcon_ws/__pycache__
+__pycache__
+.vscode/
