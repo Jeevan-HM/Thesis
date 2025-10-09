@@ -285,6 +285,40 @@ class PressureController:
         """Setter for combined record"""
         self.data_manager.combined_record = value
 
+    def test_triangular_wave(
+        self, frequency=0.2, upper_bound=5.0, lower_bound=0.0, duration=30.0
+    ):
+        """
+        Test function to demonstrate the triangular wave functionality
+
+        Args:
+            frequency (float): Frequency in Hz (default: 0.2 Hz = 5 second cycle)
+            upper_bound (float): Maximum pressure in psi (default: 5.0)
+            lower_bound (float): Minimum pressure in psi (default: 0.0)
+            duration (float): Test duration in seconds (default: 30.0)
+        """
+        print("=== TRIANGULAR WAVE TEST ===")
+        print(f"Frequency: {frequency} Hz ({1 / frequency:.1f} second cycle)")
+        print(f"Pressure range: {lower_bound} to {upper_bound} psi")
+        print(f"Duration: {duration} seconds")
+        print("=" * 50)
+
+        # Reset trial time
+        self.t0_on_trial = time.time()
+
+        # Run the triangular wave
+        self.pres_single_triangular_response(
+            frequency, upper_bound, lower_bound, duration
+        )
+
+        # Reset to zero pressure after test
+        print("Resetting all actuators to 0 psi...")
+        for i in range(len(self.NArs)):
+            self.pd_array_1[i] = 0.0
+            self.pm_array_1[i] = self.ard_socket(0.0, self.client_sockets[i])
+
+        print("Triangular wave test completed!")
+
     def cleanup(self):
         """Clean up resources"""
         if self.comm_manager:
@@ -373,7 +407,7 @@ class PressureController:
                 seg_3 = 0
                 seg_4 = 0
 
-                array = [seg_1, seg_3, seg_4]
+                array = [seg_1]
 
                 # array = [seg_7,seg_8]
 
@@ -384,28 +418,41 @@ class PressureController:
             self.t0_on_glob = time.time()
             # print(time.time()-self.t0_on_glob)
             while time.time() - self.t0_on_glob < self.trailDuriation:
-                # print("here")
+                print(
+                    f"Main control loop iteration - elapsed: {time.time() - self.t0_on_glob:.2f}s"
+                )
                 try:
-                    # print("heheheh")
+                    print("Receiving mocap data...")
                     # if self.flag_use_mocap == True:
                     self.array3setswithrotation = self.recv_cpp_socket2()
+                    print("Mocap data received, starting ramp cycles...")
                     up_rate = 1.0  # psi/s
                     down_rate = 1.0  # psi/s
                     lower_bound = 0.0  # psi
-                    upper_bound = 10.0  # psi
-                    # print("hehehe")
+                    upper_bound = 2.0  # psi
+
                     for i in range(6):
+                        print(f"Starting ramp cycle {i + 1}/6")
                         if self.trial_start_reset == 1:
                             self.t0_on_trial = time.time()
                             self.trial_start_reset = 0
                         # self.pres_single_step_response(np.array([0.0]*len(self.NArs)),10)
                         # self.t0_on_trial = time.time()
                         # self.pres_single_step_response(np.array([5.0]*len(self.NArs)),10)
-                        self.pres_single_ramp_response(
-                            up_rate, down_rate, upper_bound, lower_bound
-                        )
+                        # self.pres_single_ramp_response(
+                        # up_rate, down_rate, upper_bound, lower_bound
+                        # )
+                        # print(f"Completed ramp cycle {i + 1}/6")
+                        # self.trial_start_reset = 1
 
-                        self.trial_start_reset = 1
+                        # Alternative: Use triangular wave instead of ramp
+                        # Uncomment the following lines to use triangular wave:
+                        frequency = (
+                            0.1  # 0.1 Hz = one complete triangle every 10 seconds
+                        )
+                        self.pres_single_triangular_response(
+                            frequency, upper_bound, lower_bound, duration=20.0
+                        )
 
                 except KeyboardInterrupt:
                     break
@@ -680,6 +727,83 @@ class PressureController:
             self.th1_flag = 0
             self.th2_flag = 0
 
+    def pres_single_triangular_response(
+        self, frequency, upper_bound, lower_bound, duration=None
+    ):
+        """
+        Generates a triangular wave pressure response for all Arduinos simultaneously.
+
+        Args:
+            frequency (float): Frequency of the triangular wave in Hz (cycles per second)
+                             For example: 0.1 Hz = one complete triangle every 10 seconds
+                                         0.5 Hz = one complete triangle every 2 seconds
+            upper_bound (float): Maximum pressure value in psi
+            lower_bound (float): Minimum pressure value in psi
+            duration (float): Duration to run the wave in seconds. If None, runs indefinitely
+
+        The wave goes from lower_bound to upper_bound and back to lower_bound in one cycle.
+
+        Example usage:
+            # Slow wave: 0 to 5 psi with 10-second cycles for 60 seconds
+            controller.pres_single_triangular_response(0.1, 5.0, 0.0, 60.0)
+
+            # Fast wave: 0 to 3 psi with 2-second cycles for 20 seconds
+            controller.pres_single_triangular_response(0.5, 3.0, 0.0, 20.0)
+        """
+        print(
+            f"Starting triangular wave response: {lower_bound} to {upper_bound} psi at {frequency} Hz"
+        )
+
+        if self.t0_on_trial is None:
+            self.t0_on_trial = time.time()
+
+        try:
+            # Calculate period of one complete triangle cycle
+            period = 1.0 / frequency  # seconds per cycle
+            half_period = period / 2.0  # time for up ramp or down ramp
+            amplitude = upper_bound - lower_bound
+
+            t_start = time.time()
+
+            while self.th1_flag and self.th2_flag:
+                # Check duration limit if specified
+                if duration is not None and (time.time() - t_start) > duration:
+                    print("Triangular wave duration completed.")
+                    break
+
+                # Calculate current time within the cycle
+                t_elapsed = time.time() - t_start
+                t_cycle = t_elapsed % period  # time within current cycle (0 to period)
+
+                if t_cycle <= half_period:
+                    # First half: ramp up from lower_bound to upper_bound
+                    progress = t_cycle / half_period  # 0 to 1
+                    current_pressure = lower_bound + (amplitude * progress)
+                else:
+                    # Second half: ramp down from upper_bound to lower_bound
+                    progress = (t_cycle - half_period) / half_period  # 0 to 1
+                    current_pressure = upper_bound - (amplitude * progress)
+
+                # Apply the same pressure to all Arduinos
+                for i in range(len(self.NArs)):
+                    self.pd_array_1[i] = current_pressure
+
+                # Send to all Arduinos and get feedback
+                for j in range(len(self.NArs)):
+                    self.pm_array_1[j] = self.ard_socket(
+                        self.pd_array_1[j], self.client_sockets[j]
+                    )
+
+                # Small delay to control update rate
+                time.sleep(0.01)  # 100Hz update rate
+
+            print("Triangular wave response completed.")
+
+        except KeyboardInterrupt:
+            print("Triangular wave interrupted by user")
+            self.th1_flag = False
+            self.th2_flag = False
+
     # def pres_single_ramp_response(self, up_rate, down_rate, upper_bound, lower_bound):
     # # print("ramping")
     # t = time.time() - self.t0_on_trial  # range from 0
@@ -824,12 +948,23 @@ class PressureController:
     def recv_cpp_socket2(self):
         """Receive motion capture data from socket"""
         try:
-            strMsg = self.socket2.recv()
+            # Use non-blocking receive with timeout to prevent hanging
+            strMsg = self.socket2.recv(zmq.NOBLOCK)
             floatArray = np.fromstring(strMsg.decode("utf-8"), dtype=float, sep=",")
+            # Cache the last received data
+            self._last_mocap_data = floatArray
             return floatArray
+        except zmq.Again:
+            # No message available, return previous data or zeros
+            logger.debug("No mocap data available, using previous/zero data")
+            return getattr(
+                self, "_last_mocap_data", np.zeros(DataConfig.MOCAP_DATA_SIZE)
+            )
         except Exception as e:
             logger.error(f"Error receiving motion capture data: {e}")
-            return np.zeros(DataConfig.MOCAP_DATA_SIZE)
+            return getattr(
+                self, "_last_mocap_data", np.zeros(DataConfig.MOCAP_DATA_SIZE)
+            )
 
 
 # Compatibility alias for existing code

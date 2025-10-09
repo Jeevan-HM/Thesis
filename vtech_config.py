@@ -20,9 +20,9 @@ class NetworkConfig:
 class ControlConfig:
     """Control system configuration constants"""
 
-    DEFAULT_ARDUINO_IDS = [4, 7, 8]
+    DEFAULT_ARDUINO_IDS = [8]
     DEFAULT_POSITION_PROFILE = 2  # 0: sum of sine waves, 1: single sine wave, 2: step
-    DEFAULT_TRIAL_DURATION = 20.0  # seconds
+    DEFAULT_TRIAL_DURATION = 120.0  # seconds
 
     # Control modes
     CONTROL_MODE_BASELINE_SMC = 0

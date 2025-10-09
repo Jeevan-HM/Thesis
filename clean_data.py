@@ -5,7 +5,7 @@ import pandas as pd
 # ---- CONFIGURATION ----
 
 OUTPUT_FOLDER_NAME = "cleaned_data"
-INPUT_FODLER_NAME = "/home/g1/Developer/RISE_Lab/experiments/July-10/"
+INPUT_FODLER_NAME = "experiments/cleaned_data/"
 # This dictionary defines all the renaming operations.
 # 'old_name': 'new_name'
 COLUMN_RENAME_MAP = {

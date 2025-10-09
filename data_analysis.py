@@ -24,7 +24,7 @@ EXPERIMENTS_BASE_DIR = "/home/g1/Developer/RISE_Lab/experiments"
 START_TIME_OFFSET_SEC = 10  # Time in seconds to skip at the beginning of the plot
 
 # -- Column Indices --
-# Based on CSV structure: time,pd_4,pd_7,pd_8,pm_4_1,pm_4_2,pm_4_3,pm_4_4,pm_7_1,pm_7_2,pm_7_3,pm_7_4,pm_8_1,pm_8_2,pm_8_3,pm_8_4,mocap1_x,mocap1_y,mocap1_z,mocap1_qx,mocap1_qy,mocap1_qz,mocap1_qw,mocap2_x,mocap2_y,mocap2_z,mocap2_qx,mocap2_qy,mocap2_qz,mocap2_qw,mocap3_x,mocap3_y,mocap3_z,mocap3_qx,mocap3_qy,mocap3_qz,mocap3_qw
+# Based on CSV structure: time,pd_4,pd_7,pd_8,pm_4_1,pm_4_2,pm_4_3,pm_4_4,pm_7_1,pm_7_2,pm_7_3,pm_7_4,pm_8_1,pm_8_2,pm_9_3,pm_8_4,mocap1_x,mocap1_y,mocap1_z,mocap1_qx,mocap1_qy,mocap1_qz,mocap1_qw,mocap2_x,mocap2_y,mocap2_z,mocap2_qx,mocap2_qy,mocap2_qz,mocap2_qw,mocap3_x,mocap3_y,mocap3_z,mocap3_qx,mocap3_qy,mocap3_qz,mocap3_qw
 TIME_COL = 0
 DESIRED_PRESSURE_COLS = [1, 2, 3]  # pd_4, pd_7, pd_8
 MEASURED_PRESSURE_ARD4_COLS = [4, 5, 6, 7]  # pm_4_1, pm_4_2, pm_4_3, pm_4_4
@@ -302,8 +302,8 @@ def create_3d_mocap_plot(fig_num, data, window_title):
 
 def main():
     """Main function to run the data analysis and plotting."""
-    filename = get_experiment()
-    # filename = "/home/g1/Developer/RISE_Lab/colcon_ws/experiments/June-23/Test_5.csv"
+    # filename = get_experiment()
+    filename = "experiments/September-30/Test_4_6.csv"
     # filename = '/home/g1/Developer/RISE_Lab/colcon_ws/experiments/July-10/cleaned_data/Test_1.csv'
     if not filename:
         return
@@ -332,7 +332,7 @@ def main():
 
     headers = list(data.columns)
     base_title = os.path.basename(filename)
-    plt.style.use("seaborn-v0_8-whitegrid")
+    plt.style.use("seaborn-whitegrid")
 
     create_plot_window(
         1,
