@@ -1,6 +1,5 @@
+import csv
 import os
-
-import pandas as pd
 
 # ---- CONFIGURATION ----
 
@@ -59,29 +58,59 @@ def process_and_clean_csv(input_filepath, output_dir):
     """
     Reads a single CSV, renames and drops columns, and saves it to the output directory.
     """
+    base_filename = os.path.basename(input_filepath)
     try:
-        # Get the base name of the file to use for messages and the output file
-        base_filename = os.path.basename(input_filepath)
         print(f"--- Processing: {base_filename} ---")
 
         # Read the original CSV file
-        df = pd.read_csv(input_filepath)
+        with open(input_filepath, "r", newline="") as infile:
+            reader = csv.reader(infile)
+            rows = list(reader)
+
+        if not rows:
+            print("Error: Empty CSV file")
+            return
+
+        headers = rows[0]
+        data_rows = rows[1:]
 
         # --- Column Transformation ---
 
-        # 1. Drop the unwanted mocap columns
-        # We check which columns actually exist in the dataframe to avoid errors.
-        existing_cols_to_drop = [col for col in COLUMNS_TO_DROP if col in df.columns]
-        df.drop(columns=existing_cols_to_drop, inplace=True, errors="ignore")
+        # 1. Find columns to drop and keep
+        cols_to_drop_indices = []
+        existing_cols_to_drop = []
+        for i, header in enumerate(headers):
+            if header in COLUMNS_TO_DROP:
+                cols_to_drop_indices.append(i)
+                existing_cols_to_drop.append(header)
+
         print(f"Dropped {len(existing_cols_to_drop)} columns.")
 
-        # 2. Rename the remaining columns based on the map
-        df.rename(columns=COLUMN_RENAME_MAP, inplace=True)
+        # 2. Keep only the columns we want and rename them
+        new_headers = []
+        kept_indices = []
+        for i, header in enumerate(headers):
+            if i not in cols_to_drop_indices:
+                # Rename if in rename map, otherwise keep original name
+                new_name = COLUMN_RENAME_MAP.get(header, header)
+                new_headers.append(new_name)
+                kept_indices.append(i)
+
         print("Renamed columns.")
+
+        # Filter data rows to keep only the desired columns
+        filtered_data_rows = []
+        for row in data_rows:
+            filtered_row = [row[i] if i < len(row) else "" for i in kept_indices]
+            filtered_data_rows.append(filtered_row)
 
         # --- Saving the new file ---
         output_filepath = os.path.join(output_dir, base_filename)
-        df.to_csv(output_filepath, index=False)
+        with open(output_filepath, "w", newline="") as outfile:
+            writer = csv.writer(outfile)
+            writer.writerow(new_headers)
+            writer.writerows(filtered_data_rows)
+
         print(f"Successfully saved cleaned file to: {output_filepath}\n")
 
     except FileNotFoundError:
