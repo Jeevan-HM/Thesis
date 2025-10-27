@@ -6,6 +6,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.ticker import MultipleLocator
 
 # Optional: for interactive tooltips
 try:
@@ -24,20 +25,31 @@ except ImportError:
 EXPERIMENTS_BASE_DIR = "/home/g1/Developer/RISE_Lab/experiments"
 START_TIME_OFFSET_SEC = 10  # Time in seconds to skip at the beginning
 
+# time	pd_4	pd_7	pd_8	pm_1	pm_2	pm_3	pm_4	pm_5	pm_6	pm_7	pm_8	pm_9	pm_10	pm_11	pm_12	pm_13	pm_14	pm_15	pm_16	mocap_1	mocap_2	mocap_3	mocap_4	mocap_5	mocap_6	mocap_7	mocap_8	mocap_9	mocap_10	mocap_11	mocap_12	mocap_13	mocap_14	mocap_15	mocap_16	mocap_17	mocap_18	mocap_19	mocap_20	mocap_21
+
+
 # -- Column Names --
 TIME_COL = "time"
-DESIRED_PRESSURE_COLS = ["pd_4", "pd_3", "pd_7", "pd_8"]
+# DESIRED_PRESSURE_COLS = ["pd_4", "pd_7", "pd_8"]
+DESIRED_PRESSURE_COLS = ["pd_3", "pd_6", "pd_7", "pd_8"]
 
 # Segment-based grouping of measured pressure sensors
-MEASURED_PRESSURE_SEGMENT1_COLS = ["pm_4_1", "pm_4_2", "pm_4_3", "pm_4_4", "pm_7_1"]
+# MEASURED_PRESSURE_SEGMENT1_COLS = ["pm_1", "pm_2", "pm_3", "pm_4", "pm_5"]
+# MEASURED_PRESSURE_SEGMENT1_COLS = ["pm_1", "pm_2", "pm_3", "pm_4", "pm_5"]
+# MEASURED_PRESSURE_SEGMENT2_COLS = ["pm_6", "pm_7", "pm_8", "pm_9", "pm_10"]
+# MEASURED_PRESSURE_SEGMENT3_COLS = ["pm_11"]
+# MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_12"]
+MEASURED_PRESSURE_SEGMENT1_COLS = ["pm_3_1", "pm_3_2", "pm_3_3", "pm_3_4", "pm_7_1"]
 MEASURED_PRESSURE_SEGMENT2_COLS = ["pm_7_2", "pm_7_3", "pm_7_4", "pm_8_1", "pm_8_2"]
-MEASURED_PRESSURE_SEGMENT3_COLS = ["pm_8_3"]
-MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_8_4"]
+MEASURED_PRESSURE_SEGMENT3_COLS = ["pm_8_4"]
+MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_8_3"]
 
 # Mocap Body 3 position (x, y, z)
+# MOCAP_POS_COLS = ["mocap_15", "mocap_16", "mocap_17"]
 MOCAP_POS_COLS = ["mocap_3_x", "mocap_3_y", "mocap_3_z"]
 
 # Mocap Body 3 quaternion (qx, qy, qz, qw)
+# MOCAP_QUAT_COLS = ["mocap_18", "mocap_19", "mocap_20", "mocap_21"]
 MOCAP_QUAT_COLS = ["mocap_3_qx", "mocap_3_qy", "mocap_3_qz", "mocap_3_qw"]
 
 # -- Derived Column Names (for internal use) --
@@ -81,15 +93,15 @@ SENSOR_CONTROL_CONFIG_1 = [
         "xlabel": "Time (s)",
         "ylabel": "Desired Pressure (PSI)",
         "columns": DESIRED_PRESSURE_COLS,
-        "labels": ["pd_4", "pd_7", "pd_8"],
-        "colors": ["tab:red", "tab:orange", "tab:blue"],
+        "labels": ["pd_segment_1", "pd_segment_2", "pd_segment_3", "pd_segment_4"],
+        "colors": ["tab:red", "tab:orange", "tab:blue", "tab:green"],
     },
     {
         "title": "Measured Pressures (Segment 3)",
         "xlabel": "Time (s)",
         "ylabel": "Sensor Pressure (PSI)",
         "columns": MEASURED_PRESSURE_SEGMENT3_COLS,
-        "labels": ["pm_8_3"],
+        "labels": ["pm_segment_3"],
         "colors": ["tab:blue", "tab:cyan"],
     },
     {
@@ -97,7 +109,7 @@ SENSOR_CONTROL_CONFIG_1 = [
         "xlabel": "Time (s)",
         "ylabel": "Sensor Pressure (PSI)",
         "columns": MEASURED_PRESSURE_SEGMENT4_COLS,
-        "labels": ["pm_8_4"],
+        "labels": ["pm_segment_4"],
         "colors": ["tab:purple"],
     },
 ]
@@ -108,7 +120,13 @@ SENSOR_CONTROL_CONFIG_2 = [
         "xlabel": "Time (s)",
         "ylabel": "Sensor Pressure (PSI)",
         "columns": MEASURED_PRESSURE_SEGMENT1_COLS,
-        "labels": ["pm_4_1", "pm_4_2", "pm_4_3", "pm_4_4", "pm_7_1"],
+        "labels": [
+            "Segment_1_pouch_1",
+            "Segment_1_pouch_2",
+            "Segment_1_pouch_3",
+            "Segment_1_pouch_4",
+            "Segment_1_pouch_5",
+        ],
         "colors": ["tab:red", "tab:pink", "crimson", "tab:brown", "salmon"],
     },
     {
@@ -116,7 +134,14 @@ SENSOR_CONTROL_CONFIG_2 = [
         "xlabel": "Time (s)",
         "ylabel": "Sensor Pressure (PSI)",
         "columns": MEASURED_PRESSURE_SEGMENT2_COLS,
-        "labels": ["pm_7_2", "pm_7_3", "pm_7_4", "pm_8_1", "pm_8_2"],
+        "labels": [
+            "Segment_2_pouch_1",
+            "Segment_2_pouch_1",
+            "Segment_2_pouch_2",
+            "Segment_2_pouch_3",
+            "Segment_2_pouch_4",
+            "Segment_2_pouch_5",
+        ],
         "colors": ["tab:orange", "tab:olive", "gold", "darkorange", "peru"],
     },
 ]
@@ -212,7 +237,9 @@ def quaternion_to_yaw(qx, qy, qz, qw):
     return -np.arctan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy**2 + qz**2))
 
 
-def create_plot_window(fig_num, plot_configs, data, time, window_title):
+def create_plot_window(
+    fig_num, plot_configs, data, time, window_title, x_tick_interval=None
+):
     """Helper to create a figure window and populate it with 2D plots."""
     num_plots = len(plot_configs)
     fig, axes = plt.subplots(
@@ -234,7 +261,7 @@ def create_plot_window(fig_num, plot_configs, data, time, window_title):
             ax.plot(
                 time,
                 data[col_name].values,
-                label=col_name,
+                label=plot_cfg["labels"][i % len(plot_cfg["labels"])],
                 color=plot_cfg["colors"][i % len(plot_cfg["colors"])],
                 linewidth=2.5,
             )
@@ -245,6 +272,10 @@ def create_plot_window(fig_num, plot_configs, data, time, window_title):
         ax.legend(fontsize=13, loc="upper right", frameon=True)
         ax.grid(True, linestyle="--", alpha=0.6)
         ax.tick_params(axis="both", which="major", labelsize=13)
+
+        # Set major ticks interval on the x-axis if specified
+        if x_tick_interval:
+            ax.xaxis.set_major_locator(MultipleLocator(x_tick_interval))
 
     fig.tight_layout(rect=[0, 0, 1, 0.99], h_pad=4.0, pad=3.0)
     if HAS_MPLCURSORS:
@@ -289,9 +320,10 @@ def create_3d_mocap_plot(fig_num, data, window_title):
 def main():
     """Main function to run the data analysis and plotting."""
     filename = get_experiment()
+    # filename = "experiments/October-23/Experiment_6.csv"
+    # filename = "experiments/October-21/Experiment_1.csv"
     if not filename:
         return
-
     print(f"\nAnalyzing:\n{filename}\n")
     try:
         data = pd.read_csv(filename)
@@ -337,6 +369,7 @@ def main():
         plot_data,
         time,
         f"Sensor & Control Data (Desired, Segments 3 & 4): {base_title}",
+        # x_tick_interval=3,  # Set x-axis ticks to 1-second intervals
     )
 
     create_plot_window(
