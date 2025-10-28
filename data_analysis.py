@@ -22,7 +22,8 @@ except ImportError:
 # NOTE: Column mapping now uses header names (strings) instead of fixed indices.
 
 # -- General Settings --
-EXPERIMENTS_BASE_DIR = "/home/g1/Developer/RISE_Lab/experiments"
+# EXPERIMENTS_BASE_DIR = "/home/g1/Developer/RISE_Lab/experiments"
+EXPERIMENTS_BASE_DIR = "/Users/g1/Developer/Thesis/experiments"
 START_TIME_OFFSET_SEC = 10  # Time in seconds to skip at the beginning
 
 # time	pd_4	pd_7	pd_8	pm_1	pm_2	pm_3	pm_4	pm_5	pm_6	pm_7	pm_8	pm_9	pm_10	pm_11	pm_12	pm_13	pm_14	pm_15	pm_16	mocap_1	mocap_2	mocap_3	mocap_4	mocap_5	mocap_6	mocap_7	mocap_8	mocap_9	mocap_10	mocap_11	mocap_12	mocap_13	mocap_14	mocap_15	mocap_16	mocap_17	mocap_18	mocap_19	mocap_20	mocap_21
@@ -30,8 +31,16 @@ START_TIME_OFFSET_SEC = 10  # Time in seconds to skip at the beginning
 
 # -- Column Names --
 TIME_COL = "time"
-# DESIRED_PRESSURE_COLS = ["pd_4", "pd_7", "pd_8"]
-DESIRED_PRESSURE_COLS = ["pd_3", "pd_6", "pd_7", "pd_8"]
+
+
+DESIRED_PRESSURE_COLS = [
+    "Desired_pressure_segment_1",
+    "Desired_pressure_segment_2",
+    "Desired_pressure_segment_3",
+    "Desired_pressure_segment_4",
+]
+
+# DESIRED_PRESSURE_COLS = ["pd_3", "pd_6", "pd_7", "pd_8"]
 
 # Segment-based grouping of measured pressure sensors
 # MEASURED_PRESSURE_SEGMENT1_COLS = ["pm_1", "pm_2", "pm_3", "pm_4", "pm_5"]
@@ -39,18 +48,51 @@ DESIRED_PRESSURE_COLS = ["pd_3", "pd_6", "pd_7", "pd_8"]
 # MEASURED_PRESSURE_SEGMENT2_COLS = ["pm_6", "pm_7", "pm_8", "pm_9", "pm_10"]
 # MEASURED_PRESSURE_SEGMENT3_COLS = ["pm_11"]
 # MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_12"]
-MEASURED_PRESSURE_SEGMENT1_COLS = ["pm_3_1", "pm_3_2", "pm_3_3", "pm_3_4", "pm_7_1"]
-MEASURED_PRESSURE_SEGMENT2_COLS = ["pm_7_2", "pm_7_3", "pm_7_4", "pm_8_1", "pm_8_2"]
-MEASURED_PRESSURE_SEGMENT3_COLS = ["pm_8_4"]
-MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_8_3"]
+
+MEASURED_PRESSURE_SEGMENT1_COLS = [
+    "Measured_pressure_Segment_1_pouch_1",
+    "Measured_pressure_Segment_1_pouch_2",
+    "Measured_pressure_Segment_1_pouch_3",
+    "Measured_pressure_Segment_1_pouch_4",
+    "Measured_pressure_Segment_1_pouch_5",
+]
+MEASURED_PRESSURE_SEGMENT2_COLS = [
+    "Measured_pressure_Segment_2_pouch_1",
+    "Measured_pressure_Segment_2_pouch_2",
+    "Measured_pressure_Segment_2_pouch_3",
+    "Measured_pressure_Segment_2_pouch_4",
+    "Measured_pressure_Segment_2_pouch_5",
+]
+MEASURED_PRESSURE_SEGMENT3_COLS = ["Measured_pressure_Segment_3"]
+MEASURED_PRESSURE_SEGMENT4_COLS = ["Measured_pressure_Segment_4"]
+
+# MEASURED_PRESSURE_SEGMENT1_COLS = ["pm_3_1", "pm_3_2", "pm_3_3", "pm_3_4", "pm_7_1"]
+# MEASURED_PRESSURE_SEGMENT2_COLS = ["pm_7_2", "pm_7_3", "pm_7_4", "pm_8_1", "pm_8_2"]
+# MEASURED_PRESSURE_SEGMENT3_COLS = ["pm_8_4"]
+# MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_8_3"]
+# MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_8_3"]
 
 # Mocap Body 3 position (x, y, z)
 # MOCAP_POS_COLS = ["mocap_15", "mocap_16", "mocap_17"]
-MOCAP_POS_COLS = ["mocap_3_x", "mocap_3_y", "mocap_3_z"]
+
+# MOCAP_POS_COLS = ["mocap_3_x", "mocap_3_y", "mocap_3_z"]
+
+MOCAP_POS_COLS = ["mocap_rigid_body_x", "mocap_rigid_body_y", "mocap_rigid_body_z"]
+
 
 # Mocap Body 3 quaternion (qx, qy, qz, qw)
+
 # MOCAP_QUAT_COLS = ["mocap_18", "mocap_19", "mocap_20", "mocap_21"]
-MOCAP_QUAT_COLS = ["mocap_3_qx", "mocap_3_qy", "mocap_3_qz", "mocap_3_qw"]
+
+# MOCAP_QUAT_COLS = ["mocap_3_qx", "mocap_3_qy", "mocap_3_qz", "mocap_3_qw"]
+
+MOCAP_QUAT_COLS = [
+    "mocap_rigid_body_qx",
+    "mocap_rigid_body_qy",
+    "mocap_rigid_body_qz",
+    "mocap_rigid_body_qw",
+]
+# MOCAP_QUAT_COLS = ["mocap_3_qx", "mocap_3_qy", "mocap_3_qz", "mocap_3_qw"]
 
 # -- Derived Column Names (for internal use) --
 YAW_BODY_NAME = "yaw_body"
@@ -319,9 +361,10 @@ def create_3d_mocap_plot(fig_num, data, window_title):
 
 def main():
     """Main function to run the data analysis and plotting."""
-    filename = get_experiment()
-    # filename = "experiments/October-23/Experiment_6.csv"
-    # filename = "experiments/October-21/Experiment_1.csv"
+    # filename = get_experiment()
+
+    # filename = "experiments/October-25/cleaned_data/Experiment_1.csv"
+    filename = "experiments/October-25/cleaned_data/circular_motion_5_psi_peak.csv"
     if not filename:
         return
     print(f"\nAnalyzing:\n{filename}\n")
