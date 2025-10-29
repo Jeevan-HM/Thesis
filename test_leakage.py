@@ -1,8 +1,8 @@
 """
-Pouch Leakage Test Tool
+Pouch Leakage Test Tool - Multi-Pump Support
 
 This tool tests soft robot pouches for leakage by:
-1. Applying constant pressure via a 'Pump' Arduino.
+1. Applying constant pressure via one or more 'Pump' Arduinos.
 2. Monitoring sensor readings from a 'Sensor' Arduino in real-time.
 3. Detecting pressure decay that indicates leakage.
 
@@ -17,7 +17,7 @@ import struct
 import sys
 import threading
 import time
-from typing import List
+from typing import List, Union
 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -118,21 +118,33 @@ class ArduinoConnection:
 
 
 class LeakageTest:
-    """Main leakage test controller"""
+    """Main leakage test controller with multi-pump support"""
 
     def __init__(
-        self, pump_arduino_id: int, sensor_arduino_id: int, target_pressure: float
+        self, pump_arduino_ids: Union[int, List[int]], sensor_arduino_id: int, target_pressure: float
     ):
-        self.pump_arduino_id = pump_arduino_id
+        # Convert single pump ID to list for uniform handling
+        if isinstance(pump_arduino_ids, int):
+            self.pump_arduino_ids = [pump_arduino_ids]
+        else:
+            self.pump_arduino_ids = pump_arduino_ids
+        
         self.sensor_arduino_id = sensor_arduino_id
         self.target_pressure = target_pressure
-        self.is_separate_devices = pump_arduino_id != sensor_arduino_id
+        
+        # Check if sensor is one of the pumps
+        self.sensor_is_pump = sensor_arduino_id in self.pump_arduino_ids
 
-        self.pump_arduino = ArduinoConnection(pump_arduino_id)
-        if self.is_separate_devices:
-            self.sensor_arduino = ArduinoConnection(sensor_arduino_id)
+        # Create pump connections
+        self.pump_arduinos = [ArduinoConnection(pid) for pid in self.pump_arduino_ids]
+        
+        # Create sensor connection (if separate from pumps)
+        if self.sensor_is_pump:
+            # Find which pump is also the sensor
+            pump_index = self.pump_arduino_ids.index(sensor_arduino_id)
+            self.sensor_arduino = self.pump_arduinos[pump_index]
         else:
-            self.sensor_arduino = self.pump_arduino  # Use the same connection
+            self.sensor_arduino = ArduinoConnection(sensor_arduino_id)
 
         # Data storage
         self.timestamps = []
@@ -149,16 +161,25 @@ class LeakageTest:
         self.leakage_time = None
 
     def connect(self) -> bool:
-        """Connect to the required Arduino(s)"""
-        logger.info(f"Connecting to Pump Arduino {self.pump_arduino_id}...")
-        if not self.pump_arduino.connect():
-            return False
+        """Connect to all required Arduino(s)"""
+        # Connect all pumps
+        for i, pump in enumerate(self.pump_arduinos):
+            logger.info(f"Connecting to Pump Arduino {self.pump_arduino_ids[i]}...")
+            if not pump.connect():
+                # Clean up any successful connections
+                for j in range(i):
+                    self.pump_arduinos[j].cleanup()
+                return False
 
-        if self.is_separate_devices:
+        # Connect sensor if it's separate
+        if not self.sensor_is_pump:
             logger.info(f"Connecting to Sensor Arduino {self.sensor_arduino_id}...")
             if not self.sensor_arduino.connect():
-                self.pump_arduino.cleanup()  # Clean up the first connection
+                # Clean up pump connections
+                for pump in self.pump_arduinos:
+                    pump.cleanup()
                 return False
+        
         return True
 
     def run_test(self):
@@ -168,7 +189,7 @@ class LeakageTest:
 
         logger.info(f"\n{'=' * 60}")
         logger.info(f"LEAKAGE TEST STARTED")
-        logger.info(f"Pump Arduino ID: {self.pump_arduino_id}")
+        logger.info(f"Pump Arduino IDs: {self.pump_arduino_ids}")
         logger.info(f"Sensor Arduino ID: {self.sensor_arduino_id}")
         logger.info(f"Target Pressure: {self.target_pressure} PSI")
         logger.info(f"{'=' * 60}\n")
@@ -181,17 +202,19 @@ class LeakageTest:
             current_time = time.time()
             elapsed = current_time - self.start_time
 
-            # Send pressure command and read sensor data
-            if self.is_separate_devices:
-                # Send pressure to pump, ignore its sensor readings
-                self.pump_arduino.send_pressure_read_sensors(self.target_pressure)
+            # Send pressure command to all pumps
+            for pump in self.pump_arduinos:
+                pump.send_pressure_read_sensors(self.target_pressure)
+            
+            # Read sensor data
+            if self.sensor_is_pump:
+                # Sensor data already obtained from one of the pumps above
+                # Get the data from the pump that is also the sensor
+                pump_index = self.pump_arduino_ids.index(self.sensor_arduino_id)
+                sensors = self.pump_arduinos[pump_index].send_pressure_read_sensors(self.target_pressure)
+            else:
                 # Send dummy command (0 pressure) to sensor Arduino to trigger data send
                 sensors = self.sensor_arduino.send_pressure_read_sensors(0.0)
-            else:
-                # Pump and sensor are the same device
-                sensors = self.pump_arduino.send_pressure_read_sensors(
-                    self.target_pressure
-                )
 
             # Store data
             self.timestamps.append(elapsed)
@@ -247,7 +270,7 @@ class LeakageTest:
         logger.info(f"\n{'=' * 60}")
         logger.info(f"LEAKAGE TEST RESULTS")
         logger.info(f"{'=' * 60}")
-        logger.info(f"Pump Arduino ID: {self.pump_arduino_id}")
+        logger.info(f"Pump Arduino IDs: {self.pump_arduino_ids}")
         logger.info(f"Sensor Arduino ID: {self.sensor_arduino_id}")
         logger.info(f"Target Pressure: {self.target_pressure} PSI")
         logger.info(f"Test Duration: {self.timestamps[-1]:.1f}s")
@@ -290,15 +313,20 @@ class LeakageTest:
     def cleanup(self):
         """Clean up resources"""
         self.stop()
-        # Send zero pressure to pump before disconnecting
+        # Send zero pressure to all pumps before disconnecting
         try:
-            self.pump_arduino.send_pressure_read_sensors(0.0)
+            for pump in self.pump_arduinos:
+                pump.send_pressure_read_sensors(0.0)
             time.sleep(0.5)
         except Exception:
             pass
 
-        self.pump_arduino.cleanup()
-        if self.is_separate_devices:
+        # Clean up all pump connections
+        for pump in self.pump_arduinos:
+            pump.cleanup()
+        
+        # Clean up sensor if separate
+        if not self.sensor_is_pump:
             self.sensor_arduino.cleanup()
 
 
@@ -320,8 +348,10 @@ class RealtimePlotter:
 
         self.ax.set_xlabel("Time (seconds)", fontsize=12)
         self.ax.set_ylabel("Pressure (PSI)", fontsize=12)
+        
+        pump_ids_str = ", ".join(map(str, test.pump_arduino_ids))
         self.ax.set_title(
-            f"Leakage Test - Pump: {test.pump_arduino_id} | Sensor: {test.sensor_arduino_id}",
+            f"Leakage Test - Pumps: [{pump_ids_str}] | Sensor: {test.sensor_arduino_id}",
             fontsize=14,
             fontweight="bold",
         )
@@ -381,18 +411,28 @@ class RealtimePlotter:
         plt.show()
 
 
-def get_device_id(prompt_message: str) -> int:
-    """Get a valid Arduino ID (1-8) from the user."""
+def get_device_ids(prompt_message: str) -> Union[int, List[int]]:
+    """Get one or more valid Arduino IDs (1-8) from the user."""
     available_ids = list(range(1, 9))
     while True:
         try:
-            device_id = int(input(f"{prompt_message} {available_ids}: "))
-            if device_id in available_ids:
-                return device_id
+            response = input(f"{prompt_message} {available_ids} (comma-separated for multiple): ").strip()
+            
+            # Check if comma-separated list
+            if ',' in response:
+                ids = [int(x.strip()) for x in response.split(',')]
+                if all(device_id in available_ids for device_id in ids):
+                    return ids
+                else:
+                    print(f"Invalid ID(s). Please choose from: {available_ids}")
             else:
-                print(f"Invalid ID. Please choose from: {available_ids}")
+                device_id = int(response)
+                if device_id in available_ids:
+                    return device_id
+                else:
+                    print(f"Invalid ID. Please choose from: {available_ids}")
         except ValueError:
-            print("Please enter a valid number.")
+            print("Please enter valid number(s).")
 
 
 def get_test_pressure() -> float:
@@ -424,19 +464,23 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
 
     print("\n" + "=" * 60)
-    print("POUCH LEAKAGE TEST TOOL")
+    print("POUCH LEAKAGE TEST TOOL - MULTI-PUMP SUPPORT")
     print("=" * 60)
-    pump_arduino_id = 3
-    # pump_arduino_id = get_device_id("\nEnter Pump Arduino ID")
+    
+    # Example: Use hardcoded values or uncomment to get user input
+    pump_arduino_ids = [3,6,7,8]  # Can be single ID or list like [6, 7, 8]
+    # pump_arduino_ids = get_device_ids("\nEnter Pump Arduino ID(s)")
+    
     sensor_arduino_id = 3
-
-    # sensor_arduino_id = get_device_id(
-    #     "Enter Sensor Arduino ID (where pressure is measured)"
-    # )
-    test_pressure = 5
+    # sensor_arduino_id = get_device_ids("Enter Sensor Arduino ID (single value only)")
+    # if isinstance(sensor_arduino_id, list):
+    #     print("Sensor Arduino must be a single ID")
+    #     return 1
+    
+    test_pressure = 3
     # test_pressure = get_test_pressure()
 
-    test = LeakageTest(pump_arduino_id, sensor_arduino_id, test_pressure)
+    test = LeakageTest(pump_arduino_ids, sensor_arduino_id, test_pressure)
 
     try:
         if not test.connect():

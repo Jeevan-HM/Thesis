@@ -5,7 +5,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, r2_score
 
 # CSV_PATH = "Test_1.csv"  # change if needed
-CSV_PATH = "experiments/cleaned_data/cleaned_data/Test_1.csv"
+CSV_PATH = "experiments/October-25/cleaned_data/axial_motion.csv"
 
 # 1) Load (no header) and keep first 16 columns
 df = pd.read_csv(CSV_PATH, header=None)

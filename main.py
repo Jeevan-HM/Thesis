@@ -34,7 +34,7 @@ TARGET_PRESSURES = [5.0, 5.0, 5.0, 5.0]
 PC_ADDRESS = "10.211.215.251"
 
 # Experiment settings
-EXPERIMENT_DURATION = 300.0
+EXPERIMENT_DURATION = 120.0
 END_AFTER_ONE_CYCLE = True
 
 # Mocap settings
@@ -219,14 +219,14 @@ def circular(controller):
 
     phases = [0.0, math.pi / 2, math.pi, 3 * math.pi / 2]
 
-    # controller.desired[0] = 2.0
+    controller.desired[0] = 2.0
     controller.send_all()
-    time.sleep(0.5)
+    time.sleep(5)
 
     start = time.time()
     while controller.running:
         t = time.time() - start
-        for i in range(0, len(ARDUINO_IDS)):
+        for i in range(1, len(ARDUINO_IDS)):
             phi = phases[(i - 1) % 4]
             p = WAVE_CENTER + WAVE_AMPLITUDE * math.sin(
                 2 * math.pi * WAVE_FREQ * t + phi
@@ -252,7 +252,7 @@ def axial(controller):
 
     # Send all initial pressures
     controller.send_all()
-    time.sleep(0.5)  # Pause for 0.5s after setting initial state
+    time.sleep(5)  # Pause for 0.5s after setting initial state
 
     # --- Main Loop ---
     start = time.time()
@@ -274,7 +274,7 @@ def axial(controller):
         controller.send_all()
 
         # 4. Short pause before next update
-        time.sleep(0.01)
+        time.sleep(0.1)
 
 
 def sequential(controller):
