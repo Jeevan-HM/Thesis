@@ -361,9 +361,9 @@ def create_3d_mocap_plot(fig_num, data, window_title):
 
 def main():
     """Main function to run the data analysis and plotting."""
-    filename = get_experiment()
+    # filename = get_experiment()
 
-    # filename = "experiments/October-25/cleaned_data/Experiment_1.csv"
+    filename = "experiments/October-25/Experiment_14.csv"
     # filename = "experiments/October-25/cleaned_data/circular_motion_5_psi_peak.csv"
     if not filename:
         return

@@ -4,7 +4,7 @@ import os
 # ---- CONFIGURATION ----
 
 OUTPUT_FOLDER_NAME = "cleaned_data"
-INPUT_FODLER_NAME = "experiments/October-25"
+INPUT_FODLER_NAME = "experiments/October-28"
 # This dictionary defines all the renaming operations.
 # 'old_name': 'new_name'
 COLUMN_RENAME_MAP = {
