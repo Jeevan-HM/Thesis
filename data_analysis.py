@@ -17,82 +17,87 @@ except ImportError:
     HAS_MPLCURSORS = False
 
 # =================================================================================
+# ---- UNIVERSAL FONT SIZE CONFIGURATION ----
+# =================================================================================
+# -- EDIT THESE VALUES TO CONTROL ALL PLOT FONTS --
+BASE_FONT_SIZE = 26  # This is your base size
+LABEL_PADDING = 20  # Padding for axis labels
+plt.rcParams.update(
+    {
+        # --- Base and Tick Fonts ---
+        "font.size": BASE_FONT_SIZE,  # Default font size for non-specified items
+        "xtick.labelsize": BASE_FONT_SIZE
+        - 10,  # Font size for X-axis tick labels (e.g., 20, 40, 60)
+        "ytick.labelsize": BASE_FONT_SIZE
+        - 10,  # Font size for Y-axis tick labels (e.g., 2.5, 5.0, 7.5)
+        # --- Label Fonts ---
+        "axes.labelsize": BASE_FONT_SIZE - 10,  # Controls X and Y axis labels
+        "axes.labelpad": LABEL_PADDING,  # <-- NEW: Applies the padding
+        # --- Title Fonts ---
+        "axes.titlesize": BASE_FONT_SIZE
+        + 4,  # Controls the subplot titles (e.g., "Measured Pressures (Segment 1)")
+        "figure.titlesize": BASE_FONT_SIZE
+        + 6,  # Controls the main figure title (e.g., "Sensor & Control Data...")
+        # --- Legend Font ---
+        "legend.fontsize": BASE_FONT_SIZE,  # Controls the legend font size
+    }
+)
+# =================================================================================
+
+
+# =================================================================================
 # ---- DATA_MAPPING & SETTINGS (EDITABLE) ----
 # =================================================================================
 # NOTE: Column mapping now uses header names (strings) instead of fixed indices.
 
 # -- General Settings --
-EXPERIMENTS_BASE_DIR = "/home/g1/Developer/Thesis/experiments"
-# EXPERIMENTS_BASE_DIR = "/Users/g1/Developer/Thesis/experiments"
+# EXPERIMENTS_BASE_DIR = "/home/g1/Developer/Thesis/experiments"
+EXPERIMENTS_BASE_DIR = "/Users/g1/Developer/Thesis/experiments"
 START_TIME_OFFSET_SEC = 10  # Time in seconds to skip at the beginning
-
-# time	pd_4	pd_7	pd_8	pm_1	pm_2	pm_3	pm_4	pm_5	pm_6	pm_7	pm_8	pm_9	pm_10	pm_11	pm_12	pm_13	pm_14	pm_15	pm_16	mocap_1	mocap_2	mocap_3	mocap_4	mocap_5	mocap_6	mocap_7	mocap_8	mocap_9	mocap_10	mocap_11	mocap_12	mocap_13	mocap_14	mocap_15	mocap_16	mocap_17	mocap_18	mocap_19	mocap_20	mocap_21
-
 
 # -- Column Names --
 TIME_COL = "time"
 
 
-# DESIRED_PRESSURE_COLS = [
-#     "Desired_pressure_segment_1",
-#     "Desired_pressure_segment_2",
-#     "Desired_pressure_segment_3",
-#     "Desired_pressure_segment_4",
-# ]
-
-DESIRED_PRESSURE_COLS = ["pd_3", "pd_6", "pd_7", "pd_8"]
-
-# Segment-based grouping of measured pressure sensors
-# MEASURED_PRESSURE_SEGMENT1_COLS = ["pm_1", "pm_2", "pm_3", "pm_4", "pm_5"]
-# MEASURED_PRESSURE_SEGMENT1_COLS = ["pm_1", "pm_2", "pm_3", "pm_4", "pm_5"]
-# MEASURED_PRESSURE_SEGMENT2_COLS = ["pm_6", "pm_7", "pm_8", "pm_9", "pm_10"]
-# MEASURED_PRESSURE_SEGMENT3_COLS = ["pm_11"]
-# MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_12"]
-
-# MEASURED_PRESSURE_SEGMENT1_COLS = [
-#     "Measured_pressure_Segment_1_pouch_1",
-#     "Measured_pressure_Segment_1_pouch_2",
-#     "Measured_pressure_Segment_1_pouch_3",
-#     "Measured_pressure_Segment_1_pouch_4",
-#     "Measured_pressure_Segment_1_pouch_5",
-# ]
-# MEASURED_PRESSURE_SEGMENT2_COLS = [
-#     "Measured_pressure_Segment_2_pouch_1",
-#     "Measured_pressure_Segment_2_pouch_2",
-#     "Measured_pressure_Segment_2_pouch_3",
-#     "Measured_pressure_Segment_2_pouch_4",
-#     "Measured_pressure_Segment_2_pouch_5",
-# ]
-# MEASURED_PRESSURE_SEGMENT3_COLS = ["Measured_pressure_Segment_3"]
-# MEASURED_PRESSURE_SEGMENT4_COLS = ["Measured_pressure_Segment_4"]
-
-MEASURED_PRESSURE_SEGMENT1_COLS = ["pm_3_1", "pm_3_2", "pm_3_3", "pm_3_4", "pm_7_1"]
-MEASURED_PRESSURE_SEGMENT2_COLS = ["pm_7_2", "pm_7_3", "pm_7_4", "pm_8_1", "pm_8_2"]
-MEASURED_PRESSURE_SEGMENT3_COLS = ["pm_8_4"]
-MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_8_3"]
-MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_8_3"]
-
-# Mocap Body 3 position (x, y, z)
-# MOCAP_POS_COLS = ["mocap_15", "mocap_16", "mocap_17"]
-
-MOCAP_POS_COLS = ["mocap_3_x", "mocap_3_y", "mocap_3_z"]
-
-# MOCAP_POS_COLS = ["mocap_rigid_body_x", "mocap_rigid_body_y", "mocap_rigid_body_z"]
+# DESIRED_PRESSURE_COLS = ["pd_3", "pd_6", "pd_7", "pd_8"]
+# MEASURED_PRESSURE_SEGMENT1_COLS = ["pm_3_1", "pm_3_2", "pm_3_3", "pm_3_4", "pm_7_1"]
+# MEASURED_PRESSURE_SEGMENT2_COLS = ["pm_7_2", "pm_7_3", "pm_7_4", "pm_8_1", "pm_8_2"]
+# MEASURED_PRESSURE_SEGMENT3_COLS = ["pm_8_4"]
+# MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_8_3"]
+# MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_8_3"]
+# MOCAP_POS_COLS = ["mocap_3_x", "mocap_3_y", "mocap_3_z"]
+# MOCAP_QUAT_COLS = ["mocap_3_qx", "mocap_3_qy", "mocap_3_qz", "mocap_3_qw"]
 
 
-# Mocap Body 3 quaternion (qx, qy, qz, qw)
-
-# MOCAP_QUAT_COLS = ["mocap_18", "mocap_19", "mocap_20", "mocap_21"]
-
-MOCAP_QUAT_COLS = ["mocap_3_qx", "mocap_3_qy", "mocap_3_qz", "mocap_3_qw"]
-
-# MOCAP_QUAT_COLS = [
-#     "mocap_rigid_body_qx",
-#     "mocap_rigid_body_qy",
-#     "mocap_rigid_body_qz",
-#     "mocap_rigid_body_qw",
-# ]
-# # MOCAP_QUAT_COLS = ["mocap_3_qx", "mocap_3_qy", "mocap_3_qz", "mocap_3_qw"]
+DESIRED_PRESSURE_COLS = [
+    "Desired_pressure_segment_1",
+    "Desired_pressure_segment_2",
+    "Desired_pressure_segment_3",
+    "Desired_pressure_segment_4",
+]
+MEASURED_PRESSURE_SEGMENT1_COLS = [
+    "Measured_pressure_Segment_1_pouch_1",
+    "Measured_pressure_Segment_1_pouch_2",
+    "Measured_pressure_Segment_1_pouch_3",
+    "Measured_pressure_Segment_1_pouch_4",
+    "Measured_pressure_Segment_1_pouch_5",
+]
+MEASURED_PRESSURE_SEGMENT2_COLS = [
+    "Measured_pressure_Segment_2_pouch_1",
+    "Measured_pressure_Segment_2_pouch_2",
+    "Measured_pressure_Segment_2_pouch_3",
+    "Measured_pressure_Segment_2_pouch_4",
+    "Measured_pressure_Segment_2_pouch_5",
+]
+MEASURED_PRESSURE_SEGMENT3_COLS = ["Measured_pressure_Segment_3"]
+MEASURED_PRESSURE_SEGMENT4_COLS = ["Measured_pressure_Segment_4"]
+MOCAP_POS_COLS = ["mocap_rigid_body_x", "mocap_rigid_body_y", "mocap_rigid_body_z"]
+MOCAP_QUAT_COLS = [
+    "mocap_rigid_body_qx",
+    "mocap_rigid_body_qy",
+    "mocap_rigid_body_qz",
+    "mocap_rigid_body_qw",
+]
 
 # -- Derived Column Names (for internal use) --
 YAW_BODY_NAME = "yaw_body"
@@ -288,7 +293,8 @@ def create_plot_window(
         num_plots, 1, figsize=(16, 6 * num_plots), num=fig_num, squeeze=False
     )
     axes = axes.flatten()
-    fig.suptitle(window_title, fontsize=22, fontweight="bold", y=0.995)
+    # Note: Removed fontsize. It will use 'figure.titlesize' from rcParams
+    fig.suptitle(window_title, fontweight="bold", y=0.995)
 
     for ax, plot_cfg in zip(axes, plot_configs):
         # Filter for columns that actually exist in the DataFrame
@@ -308,21 +314,73 @@ def create_plot_window(
                 linewidth=2.5,
             )
 
-        ax.set_xlabel(plot_cfg.get("xlabel", "Time (s)"), fontsize=16)
-        ax.set_ylabel(plot_cfg.get("ylabel", "Value"), fontsize=16)
-        ax.set_title(plot_cfg["title"], fontsize=17, pad=12)
-        ax.legend(fontsize=13, loc="upper right", frameon=True)
+        # Note: Removed fontsize. Will use 'axes.labelsize' from rcParams
+        ax.set_xlabel(plot_cfg.get("xlabel", "Time (s)"))
+        ax.set_ylabel(plot_cfg.get("ylabel", "Value"))
+
+        # Note: Removed fontsize. Will use 'axes.titlesize' from rcParams
+        ax.set_title(plot_cfg["title"], pad=12)
+
+        # Note: Removed fontsize. Will use 'legend.fontsize' from rcParams
+        ax.legend(loc="upper right", frameon=True)
         ax.grid(True, linestyle="--", alpha=0.6)
-        ax.tick_params(axis="both", which="major", labelsize=13)
+
+        # Note: Removed labelsize. Will use 'xtick.labelsize' and 'ytick.labelsize'
+        ax.tick_params(axis="both", which="major")
 
         # Set major ticks interval on the x-axis if specified
         if x_tick_interval:
             ax.xaxis.set_major_locator(MultipleLocator(x_tick_interval))
 
-    fig.tight_layout(rect=[0, 0, 1, 0.99], h_pad=4.0, pad=3.0)
+    # *** FIX: Reduced h_pad from 4.0 to 2.0 to prevent squishing ***
+    fig.tight_layout(rect=[0, 0, 1, 0.99], h_pad=2.0)
+
     if HAS_MPLCURSORS:
         for ax in axes:
             mplcursors.cursor(ax.lines, hover=True)
+
+
+def create_2d_mocap_plot(fig_num, data, window_title):
+    """Creates a 2D plot for the mocap trajectory (X-Z Plane)."""
+
+    # Define the X and Z columns to use
+    MOCAP_POS_XZ_COLS = [MOCAP_POS_COLS[0], MOCAP_POS_COLS[2]]
+
+    # Check if all required columns exist
+    if not all(col in data.columns for col in MOCAP_POS_XZ_COLS):
+        print(
+            f"Warning: Missing one or more X-Z mocap position columns ({MOCAP_POS_XZ_COLS}). Skipping 2D X-Z plot."
+        )
+        return
+
+    # Create a standard 2D figure and axes
+    fig = plt.figure(num=fig_num, figsize=(10, 8))
+    ax = fig.add_subplot(111)
+
+    # Extract just X and Z data
+    # Note: MOCAP_POS_COLS[0] is X, MOCAP_POS_COLS[2] is Z
+    x, z = data[MOCAP_POS_XZ_COLS].values.T
+
+    # *** THIS IS THE MODIFIED LINE ***
+    ax.plot(x, z, label="Trajectory", color="orange")
+    # *** END OF MODIFICATION ***
+
+    ax.scatter(x[0], z[0], c="g", s=100, marker="o", label="Start")
+    ax.scatter(x[-1], z[-1], c="r", s=100, marker="s", label="End")
+
+    # Use 'axes.labelsize' from rcParams
+    ax.set_xlabel(f"{MOCAP_POS_COLS[0]} Position (X)", fontweight="bold")
+    ax.set_ylabel(f"{MOCAP_POS_COLS[2]} Position (Z)", fontweight="bold")
+
+    # Use 'axes.titlesize' from rcParams
+    ax.set_title(window_title, fontweight="bold", pad=20)
+
+    # Use 'legend.fontsize' from rcParams
+    ax.legend(loc="upper right")
+    ax.grid(True, linestyle="--", alpha=0.6)
+
+    # Set equal aspect ratio so X and Z are scaled the same
+    ax.set_aspect("equal", adjustable="box")
 
 
 def create_3d_mocap_plot(fig_num, data, window_title):
@@ -337,7 +395,7 @@ def create_3d_mocap_plot(fig_num, data, window_title):
 
     x, y, z = data[MOCAP_POS_COLS].values.T
 
-    ax.plot(x, y, z, label="Trajectory")
+    ax.plot(x, y, z, label="Trajectory", color="orange")
     ax.scatter(
         x[0], y[0], z[0], c="g", s=100, marker="o", label="Start", depthshade=False
     )
@@ -345,10 +403,15 @@ def create_3d_mocap_plot(fig_num, data, window_title):
         x[-1], y[-1], z[-1], c="r", s=100, marker="s", label="End", depthshade=False
     )
 
-    ax.set_xlabel("X Position ", fontweight="bold", fontsize=12)
-    ax.set_ylabel("Y Position ", fontweight="bold", fontsize=12)
-    ax.set_zlabel("Z Position ", fontweight="bold", fontsize=12)
-    ax.set_title(window_title, fontsize=20, fontweight="bold", pad=20)
+    # Note: Removed fontsize. Will use 'axes.labelsize' from rcParams
+    ax.set_xlabel("X Position ", fontweight="bold")
+    ax.set_ylabel("Y Position ", fontweight="bold")
+    ax.set_zlabel("Z Position ", fontweight="bold")
+
+    # Note: Removed fontsize. Will use 'axes.titlesize' from rcParams
+    ax.set_title(window_title, fontweight="bold", pad=20)
+
+    # Note: Legend will use default 'legend.fontsize' from rcParams
     ax.legend()
     ax.grid(True)
 
@@ -361,9 +424,9 @@ def create_3d_mocap_plot(fig_num, data, window_title):
 
 def main():
     """Main function to run the data analysis and plotting."""
-    # filename = get_experiment()
+    filename = get_experiment()
 
-    filename = "experiments/October-25/Experiment_14.csv"
+    filename = "experiments/October-25/cleaned_data/axial_motion.csv"
     # filename = "experiments/October-25/cleaned_data/circular_motion_5_psi_peak.csv"
     if not filename:
         return
@@ -431,7 +494,8 @@ def main():
         f"Mocap Data (Time Series - Body 3): {base_title}",
     )
 
-    create_3d_mocap_plot(4, plot_data, f"Mocap 3D Trajectory (Body 3): {base_title}")
+    # create_3d_mocap_plot(4, plot_data, f"Mocap 3D Trajectory (Body 3): {base_title}")
+    create_2d_mocap_plot(4, plot_data, f"Robot Trajectory")
 
     plt.show()
 
