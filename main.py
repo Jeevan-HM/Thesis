@@ -25,6 +25,15 @@ except ImportError:
     MOCAP_AVAILABLE = False
     print("Warning: ZMQ/numpy not available. Mocap disabled.")
 
+try:
+    import h5py
+
+    HDF5_AVAILABLE = True
+except ImportError:
+    HDF5_AVAILABLE = False
+    print("ERROR: h5py not installed. Install with: pip install h5py")
+    sys.exit(1)
+
 # ============================================================================
 # CONFIGURATION - Edit these values
 # ============================================================================
@@ -34,16 +43,19 @@ TARGET_PRESSURES = [5.0, 5.0, 5.0, 5.0]
 PC_ADDRESS = "10.211.215.251"
 
 # Experiment settings
-EXPERIMENT_DURATION = 120.0
+EXPERIMENT_DURATION = 300.0
 END_AFTER_ONE_CYCLE = True
+
+# Graceful exit settings
+RAMPDOWN_DURATION = 5.0  # seconds to ramp down all pressures to zero
 
 # Mocap settings
 USE_MOCAP = True
 MOCAP_PORT = "tcp://127.0.0.1:3885"
 MOCAP_DATA_SIZE = 21
 
-# WAVE_FUNCTION = "axial"
-WAVE_FUNCTION = "circular"
+WAVE_FUNCTION = "axial"
+# WAVE_FUNCTION = "circular"
 
 
 # ============================================================================
@@ -149,59 +161,128 @@ class MocapManager:
 
 class DataLogger:
     def __init__(self):
-        self.file = None
+        self.hdf5_path = None
+        self.exp_group_name = None
         self.start_time = None
+        self.data_buffer = []
+        self.lock = threading.Lock()
 
     def start(self):
         now = datetime.datetime.now()
-        folder = os.path.join("experiments", now.strftime("%B-%d"))
+        folder = "experiments"
         os.makedirs(folder, exist_ok=True)
 
-        num = len([f for f in os.listdir(folder) if f.startswith("Experiment_")]) + 1
-        path = os.path.join(folder, f"Experiment_{num}.csv")
-        self.file = open(path, "w")
+        # Create monthly HDF5 file
+        month_file = now.strftime("%Y_%B.h5")
+        self.hdf5_path = os.path.join(folder, month_file)
 
-        header = ["time"]
-        for aid in ARDUINO_IDS:
-            header.append(f"pd_{aid}")
-        for aid in ARDUINO_IDS:
-            for s in range(1, 5):
-                header.append(f"pm_{aid}_{s}")
+        # Determine experiment number
+        exp_num = 1
+        if os.path.exists(self.hdf5_path):
+            with h5py.File(self.hdf5_path, "r") as f:
+                existing = [k for k in f.keys() if k.startswith("exp_")]
+                if existing:
+                    # Extract numbers from exp names
+                    numbers = []
+                    for exp_name in existing:
+                        try:
+                            # Split by underscore and get the number after exp_
+                            parts = exp_name.split("_")
+                            if len(parts) >= 2:
+                                num = int(parts[1])
+                                numbers.append(num)
+                        except (ValueError, IndexError):
+                            continue
+                    if numbers:
+                        exp_num = max(numbers) + 1
 
-        if USE_MOCAP and MOCAP_AVAILABLE:
-            for body_num in range(1, 4):  # 3 rigid bodies
-                header.append(f"mocap_{body_num}_x")
-                header.append(f"mocap_{body_num}_y")
-                header.append(f"mocap_{body_num}_z")
-                header.append(f"mocap_{body_num}_qx")
-                header.append(f"mocap_{body_num}_qy")
-                header.append(f"mocap_{body_num}_qz")
-                header.append(f"mocap_{body_num}_qw")
-
-        self.file.write(",".join(header) + "\n")
+        # Create experiment name with human-readable date/time
+        # Format: exp_001_axial_Oct30_14h23m
+        date_str = now.strftime("%b%d_%Hh%Mm")
+        self.exp_group_name = f"exp_{exp_num:03d}_{WAVE_FUNCTION}_{date_str}"
         self.start_time = time.time()
-        logger.info(f"Logging to: {os.path.abspath(path)}")
+
+        logger.info(
+            f"Logging to: {os.path.abspath(self.hdf5_path)} -> {self.exp_group_name}"
+        )
 
     def log(self, desired, measured, mocap=None):
-        if not self.file:
+        if not self.hdf5_path:
             return
 
-        line = f"{time.time() - self.start_time:.6f}"
-        for p in desired:
-            line += f",{p:.3f}"
+        # Build data row
+        row = [time.time() - self.start_time]
+        row.extend(desired)
         for sensors in measured:
-            for s in sensors:
-                line += f",{s:.6f}"
+            row.extend(sensors)
         if mocap:
-            for m in mocap:
-                line += f",{m:.6f}"
+            row.extend(mocap)
 
-        self.file.write(line + "\n")
-        self.file.flush()
+        with self.lock:
+            self.data_buffer.append(row)
 
-    def stop(self):
-        if self.file:
-            self.file.close()
+    def stop(self, description=None):
+        if not self.hdf5_path or not self.data_buffer:
+            return
+
+        # Convert buffer to numpy array
+        data_array = np.array(self.data_buffer)
+
+        # Create column names
+        col_names = ["time"]
+        for aid in ARDUINO_IDS:
+            col_names.append(f"pd_{aid}")
+        for aid in ARDUINO_IDS:
+            for s in range(1, 5):
+                col_names.append(f"pm_{aid}_{s}")
+
+        if USE_MOCAP and MOCAP_AVAILABLE:
+            for body_num in range(1, 4):
+                col_names.append(f"mocap_{body_num}_x")
+                col_names.append(f"mocap_{body_num}_y")
+                col_names.append(f"mocap_{body_num}_z")
+                col_names.append(f"mocap_{body_num}_qx")
+                col_names.append(f"mocap_{body_num}_qy")
+                col_names.append(f"mocap_{body_num}_qz")
+                col_names.append(f"mocap_{body_num}_qw")
+
+        # Save to HDF5
+        try:
+            with h5py.File(self.hdf5_path, "a") as f:
+                grp = f.create_group(self.exp_group_name)
+
+                # Save data
+                grp.create_dataset(
+                    "data", data=data_array, compression="gzip", compression_opts=4
+                )
+
+                # Save column names as attribute
+                grp.attrs["columns"] = col_names
+
+                # Save metadata - Important experiment parameters
+                grp.attrs["timestamp"] = datetime.datetime.now().isoformat()
+                grp.attrs["experiment_type"] = WAVE_FUNCTION
+                grp.attrs["duration_seconds"] = EXPERIMENT_DURATION
+                grp.attrs["mocap_enabled"] = USE_MOCAP and MOCAP_AVAILABLE
+                grp.attrs["arduino_ids"] = ARDUINO_IDS
+                grp.attrs["target_pressures_psi"] = TARGET_PRESSURES
+                grp.attrs["end_after_one_cycle"] = END_AFTER_ONE_CYCLE
+                grp.attrs["rampdown_duration_seconds"] = RAMPDOWN_DURATION
+                grp.attrs["sample_count"] = len(self.data_buffer)
+                grp.attrs["pc_address"] = PC_ADDRESS
+
+                if USE_MOCAP and MOCAP_AVAILABLE:
+                    grp.attrs["mocap_port"] = MOCAP_PORT
+                    grp.attrs["mocap_data_size"] = MOCAP_DATA_SIZE
+
+                if description:
+                    grp.attrs["description"] = description
+
+                logger.info(
+                    f"Saved {len(self.data_buffer)} samples to {self.exp_group_name}"
+                )
+        except Exception as e:
+            logger.error(f"Error saving HDF5: {e}")
 
 
 # ============================================================================
@@ -214,19 +295,18 @@ def circular(controller):
 
     # Wave parameters - adjust as needed
     WAVE_FREQ = 0.1  # Hz
-    WAVE_CENTER = 3.0  # psi
+    WAVE_CENTER = 1.0  # psi
     WAVE_AMPLITUDE = 2.0  # psi
 
     phases = [0.0, math.pi / 2, math.pi, 3 * math.pi / 2]
 
-    controller.desired[0] = 2.0
     controller.send_all()
     time.sleep(5)
 
     start = time.time()
     while controller.running:
         t = time.time() - start
-        for i in range(1, len(ARDUINO_IDS)):
+        for i in range(0, len(ARDUINO_IDS)):
             phi = phases[(i - 1) % 4]
             p = WAVE_CENTER + WAVE_AMPLITUDE * math.sin(
                 2 * math.pi * WAVE_FREQ * t + phi
@@ -322,6 +402,10 @@ def sequential(controller):
 
 def elliptical(controller):
     """Elliptical motion"""
+    WAVE_FREQ = 0.1
+    WAVE_CENTER = 3.0
+    WAVE_AMPLITUDE = 2.0
+
     phases = [0.0, math.pi / 2, math.pi, 3 * math.pi / 2]
 
     start = time.time()
@@ -369,6 +453,35 @@ class Controller:
         for i in range(len(ARDUINO_IDS)):
             self.measured[i] = self.arduino.send_pressure(i, self.desired[i])
 
+    def graceful_rampdown(self):
+        """Smoothly ramp down all pressures to zero"""
+        logger.info(f"Ramping down pressures over {RAMPDOWN_DURATION}s...")
+
+        # Capture current pressures as starting point
+        start_pressures = self.desired.copy()
+
+        # Calculate ramp steps
+        steps = int(RAMPDOWN_DURATION / 0.01)  # 10ms per step
+
+        for step in range(steps + 1):
+            if not self.running:
+                break
+
+            # Linear interpolation from current pressure to 0
+            progress = step / steps
+            for i in range(len(ARDUINO_IDS)):
+                self.desired[i] = start_pressures[i] * (1.0 - progress)
+
+            self.send_all()
+            time.sleep(0.01)
+
+        # Ensure all pressures are exactly zero
+        for i in range(len(ARDUINO_IDS)):
+            self.desired[i] = 0.0
+        self.send_all()
+
+        logger.info("Rampdown complete - all pressures at 0 psi")
+
     def run(self):
         self.logger.start()
         if self.mocap:
@@ -383,6 +496,10 @@ class Controller:
         # Start wave thread
         wave_thread = threading.Thread(target=self._wave_loop, daemon=True)
         wave_thread.start()
+
+        # Start progress indicator thread
+        progress_thread = threading.Thread(target=self._progress_loop, daemon=True)
+        progress_thread.start()
 
         logger.info("Experiment started")
 
@@ -405,16 +522,63 @@ class Controller:
         if END_AFTER_ONE_CYCLE:
             self.running = False
 
+    def _progress_loop(self):
+        """Display experiment progress and live sensor readings"""
+        start = time.time()
+        total_duration_str = f"{int(EXPERIMENT_DURATION)}s"
+
+        while self.running:
+            elapsed = time.time() - start
+
+            # Format time in seconds
+            elapsed_str = f"{int(elapsed)}s"
+
+            # Calculate percentage
+            progress = min(100, (elapsed / EXPERIMENT_DURATION) * 100)
+
+            # Progress bar
+            bar_length = 30
+            filled = int(bar_length * progress / 100)
+            bar = "█" * filled + "░" * (bar_length - filled)
+
+            # Print progress (overwrite same line)
+            print(
+                f"\r[{bar}] {progress:.1f}% | {elapsed_str}/{total_duration_str}",
+                end="",
+                flush=True,
+            )
+
+            time.sleep(1.0)
+
+        # Print newline when done
+        print()
+
     def stop(self):
+        # Signal threads to stop
         self.running = False
+
+        # Give wave thread a moment to exit cleanly
+        time.sleep(0.1)
+
+        # Gracefully ramp down all pressures
+        self.graceful_rampdown()
+
+        # Stop mocap
         if self.mocap:
             self.mocap.stop()
 
-        for i in range(len(ARDUINO_IDS)):
-            self.desired[i] = 0.0
-        self.send_all()
+        # Prompt for description
+        try:
+            print("\n" + "=" * 60)
+            description = input(
+                "Enter experiment description (or press Enter to skip): "
+            ).strip()
+            if not description:
+                description = "No description provided"
+        except (EOFError, KeyboardInterrupt):
+            description = "Interrupted - no description"
 
-        self.logger.stop()
+        self.logger.stop(description)
         self.arduino.cleanup()
 
 
@@ -426,6 +590,7 @@ def main():
     logger.info(f"Pressures: {TARGET_PRESSURES} psi")
     logger.info(f"Wave: {WAVE_FUNCTION}")
     logger.info(f"Mocap: {'ON' if USE_MOCAP and MOCAP_AVAILABLE else 'OFF'}")
+    logger.info(f"Rampdown: {RAMPDOWN_DURATION}s")
     logger.info("=" * 50)
 
     controller = Controller()

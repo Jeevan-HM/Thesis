@@ -3,6 +3,7 @@ import os
 import re
 from datetime import datetime
 
+import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -20,8 +21,8 @@ except ImportError:
 # ---- UNIVERSAL FONT SIZE CONFIGURATION ----
 # =================================================================================
 # -- EDIT THESE VALUES TO CONTROL ALL PLOT FONTS --
-BASE_FONT_SIZE = 26  # This is your base size
-LABEL_PADDING = 20  # Padding for axis labels
+BASE_FONT_SIZE = 16  # This is your base size
+LABEL_PADDING = 10  # Padding for axis labels
 plt.rcParams.update(
     {
         # --- Base and Tick Fonts ---
@@ -36,8 +37,7 @@ plt.rcParams.update(
         # --- Title Fonts ---
         "axes.titlesize": BASE_FONT_SIZE
         + 4,  # Controls the subplot titles (e.g., "Measured Pressures (Segment 1)")
-        "figure.titlesize": BASE_FONT_SIZE
-        + 6,  # Controls the main figure title (e.g., "Sensor & Control Data...")
+        "figure.titlesize": BASE_FONT_SIZE + 6,  # Controls the main figure title (e.g., "Sensor & Control Data...")
         # --- Legend Font ---
         "legend.fontsize": BASE_FONT_SIZE,  # Controls the legend font size
     }
@@ -51,53 +51,53 @@ plt.rcParams.update(
 # NOTE: Column mapping now uses header names (strings) instead of fixed indices.
 
 # -- General Settings --
-# EXPERIMENTS_BASE_DIR = "/home/g1/Developer/Thesis/experiments"
-EXPERIMENTS_BASE_DIR = "/Users/g1/Developer/Thesis/experiments"
+EXPERIMENTS_BASE_DIR = "/home/g1/Developer/Thesis/experiments"
+# EXPERIMENTS_BASE_DIR = "/Users/g1/Developer/Thesis/experiments"
 START_TIME_OFFSET_SEC = 10  # Time in seconds to skip at the beginning
 
 # -- Column Names --
 TIME_COL = "time"
 
 
-# DESIRED_PRESSURE_COLS = ["pd_3", "pd_6", "pd_7", "pd_8"]
-# MEASURED_PRESSURE_SEGMENT1_COLS = ["pm_3_1", "pm_3_2", "pm_3_3", "pm_3_4", "pm_7_1"]
-# MEASURED_PRESSURE_SEGMENT2_COLS = ["pm_7_2", "pm_7_3", "pm_7_4", "pm_8_1", "pm_8_2"]
-# MEASURED_PRESSURE_SEGMENT3_COLS = ["pm_8_4"]
-# MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_8_3"]
-# MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_8_3"]
-# MOCAP_POS_COLS = ["mocap_3_x", "mocap_3_y", "mocap_3_z"]
-# MOCAP_QUAT_COLS = ["mocap_3_qx", "mocap_3_qy", "mocap_3_qz", "mocap_3_qw"]
+DESIRED_PRESSURE_COLS = ["pd_3", "pd_6", "pd_7", "pd_8"]
+MEASURED_PRESSURE_SEGMENT1_COLS = ["pm_3_1", "pm_3_2", "pm_3_3", "pm_3_4", "pm_7_1"]
+MEASURED_PRESSURE_SEGMENT2_COLS = ["pm_7_2", "pm_7_3", "pm_7_4", "pm_8_1", "pm_8_2"]
+MEASURED_PRESSURE_SEGMENT3_COLS = ["pm_8_4"]
+MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_8_3"]
+MEASURED_PRESSURE_SEGMENT4_COLS = ["pm_8_3"]
+MOCAP_POS_COLS = ["mocap_3_x", "mocap_3_y", "mocap_3_z"]
+MOCAP_QUAT_COLS = ["mocap_3_qx", "mocap_3_qy", "mocap_3_qz", "mocap_3_qw"]
 
 
-DESIRED_PRESSURE_COLS = [
-    "Desired_pressure_segment_1",
-    "Desired_pressure_segment_2",
-    "Desired_pressure_segment_3",
-    "Desired_pressure_segment_4",
-]
-MEASURED_PRESSURE_SEGMENT1_COLS = [
-    "Measured_pressure_Segment_1_pouch_1",
-    "Measured_pressure_Segment_1_pouch_2",
-    "Measured_pressure_Segment_1_pouch_3",
-    "Measured_pressure_Segment_1_pouch_4",
-    "Measured_pressure_Segment_1_pouch_5",
-]
-MEASURED_PRESSURE_SEGMENT2_COLS = [
-    "Measured_pressure_Segment_2_pouch_1",
-    "Measured_pressure_Segment_2_pouch_2",
-    "Measured_pressure_Segment_2_pouch_3",
-    "Measured_pressure_Segment_2_pouch_4",
-    "Measured_pressure_Segment_2_pouch_5",
-]
-MEASURED_PRESSURE_SEGMENT3_COLS = ["Measured_pressure_Segment_3"]
-MEASURED_PRESSURE_SEGMENT4_COLS = ["Measured_pressure_Segment_4"]
-MOCAP_POS_COLS = ["mocap_rigid_body_x", "mocap_rigid_body_y", "mocap_rigid_body_z"]
-MOCAP_QUAT_COLS = [
-    "mocap_rigid_body_qx",
-    "mocap_rigid_body_qy",
-    "mocap_rigid_body_qz",
-    "mocap_rigid_body_qw",
-]
+# DESIRED_PRESSURE_COLS = [
+#     "Desired_pressure_segment_1",
+#     "Desired_pressure_segment_2",
+#     "Desired_pressure_segment_3",
+#     "Desired_pressure_segment_4",
+# ]
+# MEASURED_PRESSURE_SEGMENT1_COLS = [
+#     "Measured_pressure_Segment_1_pouch_1",
+#     "Measured_pressure_Segment_1_pouch_2",
+#     "Measured_pressure_Segment_1_pouch_3",
+#     "Measured_pressure_Segment_1_pouch_4",
+#     "Measured_pressure_Segment_1_pouch_5",
+# ]
+# MEASURED_PRESSURE_SEGMENT2_COLS = [
+#     "Measured_pressure_Segment_2_pouch_1",
+#     "Measured_pressure_Segment_2_pouch_2",
+#     "Measured_pressure_Segment_2_pouch_3",
+#     "Measured_pressure_Segment_2_pouch_4",
+#     "Measured_pressure_Segment_2_pouch_5",
+# ]
+# MEASURED_PRESSURE_SEGMENT3_COLS = ["Measured_pressure_Segment_3"]
+# MEASURED_PRESSURE_SEGMENT4_COLS = ["Measured_pressure_Segment_4"]
+# MOCAP_POS_COLS = ["mocap_rigid_body_x", "mocap_rigid_body_y", "mocap_rigid_body_z"]
+# MOCAP_QUAT_COLS = [
+#     "mocap_rigid_body_qx",
+#     "mocap_rigid_body_qy",
+#     "mocap_rigid_body_qz",
+#     "mocap_rigid_body_qw",
+# ]
 
 # -- Derived Column Names (for internal use) --
 YAW_BODY_NAME = "yaw_body"
@@ -194,8 +194,128 @@ SENSOR_CONTROL_CONFIG_2 = [
 ]
 
 
+# =================================================================================
+# ---- HDF5 LOADING FUNCTIONS ----
+# =================================================================================
+def list_h5_experiments():
+    """List all HDF5 files and their experiments."""
+    h5_files = [f for f in os.listdir(EXPERIMENTS_BASE_DIR) if f.endswith('.h5')]
+    
+    if not h5_files:
+        print("No HDF5 files found in experiments directory!")
+        return None
+    
+    print("\n" + "="*80)
+    print("Available HDF5 Files:")
+    print("="*80)
+    
+    all_experiments = []
+    
+    for h5_file in sorted(h5_files):
+        filepath = os.path.join(EXPERIMENTS_BASE_DIR, h5_file)
+        print(f"\n📁 {h5_file}")
+        
+        with h5py.File(filepath, 'r') as f:
+            experiments = sorted([k for k in f.keys() if k.startswith('exp_')])
+            
+            for exp_name in experiments:
+                exp = f[exp_name]
+                timestamp = exp.attrs.get('timestamp', 'N/A')
+                wave = exp.attrs.get('wave_function', 'Unknown')
+                desc = exp.attrs.get('description', 'No description')
+                samples = len(exp['data'])
+                
+                all_experiments.append((filepath, exp_name))
+                
+                print(f"  {len(all_experiments)}. {exp_name}")
+                print(f"     Time: {timestamp}")
+                print(f"     Wave: {wave}")
+                print(f"     Samples: {samples}")
+                print(f"     Description: {desc}")
+    
+    print("\n" + "="*80)
+    return all_experiments
+
+
+def select_experiment():
+    """Auto-selects latest experiment by timestamp."""
+    h5_files = [f for f in os.listdir(EXPERIMENTS_BASE_DIR) if f.endswith('.h5')]
+    
+    if not h5_files:
+        print("No HDF5 files found!")
+        return None, None
+    
+    all_experiments = []
+    for h5_file in h5_files:
+        filepath = os.path.join(EXPERIMENTS_BASE_DIR, h5_file)
+        with h5py.File(filepath, 'r') as f:
+            for exp_name in f.keys():
+                if exp_name.startswith('exp_'):
+                    timestamp_str = f[exp_name].attrs.get('timestamp', 'N/A')
+                    try:
+                        timestamp = datetime.fromisoformat(timestamp_str)
+                    except (ValueError, TypeError):
+                        timestamp = datetime.min
+                    all_experiments.append((filepath, exp_name, timestamp))
+    
+    if not all_experiments:
+        print("No experiments found!")
+        return None, None
+    
+    all_experiments.sort(key=lambda x: x[2], reverse=True)
+    latest = all_experiments[0]
+    print(f"Loading: {latest[1]} ({latest[2].strftime('%Y-%m-%d %H:%M:%S')})")
+    
+    return latest[0], latest[1]
+
+
+def load_h5_experiment(h5_file, exp_name):
+    """Load experiment data from HDF5 and return as DataFrame."""
+    with h5py.File(h5_file, 'r') as f:
+        exp = f[exp_name]
+        
+        # Load data and column names
+        data_array = exp['data'][:]
+        columns = list(exp.attrs['columns'])
+        
+        # Get metadata
+        metadata = {
+            'timestamp': exp.attrs.get('timestamp', 'N/A'),
+            'wave_function': exp.attrs.get('wave_function', 'Unknown'),
+            'description': exp.attrs.get('description', 'No description'),
+            'arduino_ids': list(exp.attrs.get('arduino_ids', [])),
+            'target_pressures': list(exp.attrs.get('target_pressures', [])),
+        }
+        
+        # Create DataFrame
+        df = pd.DataFrame(data_array, columns=columns)
+        
+        print(f"\nMetadata:")
+        print(f"  Timestamp: {metadata['timestamp']}")
+        print(f"  Wave Function: {metadata['wave_function']}")
+        print(f"  Description: {metadata['description']}")
+        print(f"  Arduino IDs: {metadata['arduino_ids']}")
+        print(f"  Target Pressures: {metadata['target_pressures']}")
+        print(f"  Data Shape: {df.shape}")
+        
+        return df
+
+
 def get_experiment():
-    """Finds the latest experiment file based on directory structure."""
+    """
+    Modified to work with HDF5 files.
+    Returns path to load data from - either CSV or HDF5.
+    """
+    # Check if we should use HDF5
+    h5_files = [f for f in os.listdir(EXPERIMENTS_BASE_DIR) if f.endswith('.h5')]
+    
+    if h5_files:
+        # Use HDF5
+        h5_file, exp_name = select_experiment()
+        if h5_file and exp_name:
+            return ('h5', h5_file, exp_name)
+    
+    # Fallback to CSV (original code)
     try:
         if not os.path.exists(EXPERIMENTS_BASE_DIR):
             raise FileNotFoundError
@@ -259,13 +379,14 @@ def get_experiment():
         latest_test_file = max(test_nums, key=lambda x: x[0])[1]
         filename = os.path.join(latest_folder_path, latest_test_file)
         print(f"Latest experiment file: {filename}")
-        return filename
+        return ('csv', filename)
     except FileNotFoundError:
         print(f"Error: Directory not found. Check 'EXPERIMENTS_BASE_DIR'.")
         exit()
     except RuntimeError as e:
         print(f"Error finding experiment file: {e}")
         exit()
+# =================================================================================
 
 
 def quaternion_to_roll(qx, qy, qz, qw):
@@ -424,18 +545,25 @@ def create_3d_mocap_plot(fig_num, data, window_title):
 
 def main():
     """Main function to run the data analysis and plotting."""
-    filename = get_experiment()
-
-    filename = "experiments/October-25/cleaned_data/axial_motion.csv"
-    # filename = "experiments/October-25/cleaned_data/circular_motion_5_psi_peak.csv"
-    if not filename:
+    result = get_experiment()
+    if not result:
         return
-    print(f"\nAnalyzing:\n{filename}\n")
-    try:
-        data = pd.read_csv(filename)
-    except FileNotFoundError:
-        print(f"Error: File '{filename}' not found.")
-        return
+    
+    # Load data based on file type
+    if result[0] == 'h5':
+        _, h5_file, exp_name = result
+        print(f"\nLoading HDF5: {exp_name} from {os.path.basename(h5_file)}")
+        data = load_h5_experiment(h5_file, exp_name)
+        base_title = exp_name
+    else:
+        _, filename = result
+        print(f"\nAnalyzing CSV:\n{filename}\n")
+        try:
+            data = pd.read_csv(filename)
+        except FileNotFoundError:
+            print(f"Error: File '{filename}' not found.")
+            return
+        base_title = os.path.basename(filename)
 
     if data.empty:
         print("Error: Data file is empty.")
@@ -467,8 +595,6 @@ def main():
         time = time[start_index:]
         plot_data = plot_data.iloc[start_index:].reset_index(drop=True)
 
-    base_title = os.path.basename(filename)
-
     create_plot_window(
         1,
         SENSOR_CONTROL_CONFIG_1,
@@ -495,7 +621,7 @@ def main():
     )
 
     # create_3d_mocap_plot(4, plot_data, f"Mocap 3D Trajectory (Body 3): {base_title}")
-    create_2d_mocap_plot(4, plot_data, f"Robot Trajectory")
+    create_3d_mocap_plot(4, plot_data, f"Robot Trajectory")
 
     plt.show()
 

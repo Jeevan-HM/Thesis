@@ -121,23 +121,26 @@ class LeakageTest:
     """Main leakage test controller with multi-pump support"""
 
     def __init__(
-        self, pump_arduino_ids: Union[int, List[int]], sensor_arduino_id: int, target_pressure: float
+        self,
+        pump_arduino_ids: Union[int, List[int]],
+        sensor_arduino_id: int,
+        target_pressure: float,
     ):
         # Convert single pump ID to list for uniform handling
         if isinstance(pump_arduino_ids, int):
             self.pump_arduino_ids = [pump_arduino_ids]
         else:
             self.pump_arduino_ids = pump_arduino_ids
-        
+
         self.sensor_arduino_id = sensor_arduino_id
         self.target_pressure = target_pressure
-        
+
         # Check if sensor is one of the pumps
         self.sensor_is_pump = sensor_arduino_id in self.pump_arduino_ids
 
         # Create pump connections
         self.pump_arduinos = [ArduinoConnection(pid) for pid in self.pump_arduino_ids]
-        
+
         # Create sensor connection (if separate from pumps)
         if self.sensor_is_pump:
             # Find which pump is also the sensor
@@ -160,6 +163,12 @@ class LeakageTest:
         self.leakage_sensor = None
         self.leakage_time = None
 
+        # Cutoff tracking
+        self.supply_cutoff = False
+        self.cutoff_time = None
+        self.pressure_at_cutoff = [None] * 4
+        self.decay_rates = [None] * 4
+
     def connect(self) -> bool:
         """Connect to all required Arduino(s)"""
         # Connect all pumps
@@ -179,7 +188,7 @@ class LeakageTest:
                 for pump in self.pump_arduinos:
                     pump.cleanup()
                 return False
-        
+
         return True
 
     def run_test(self):
@@ -202,17 +211,32 @@ class LeakageTest:
             current_time = time.time()
             elapsed = current_time - self.start_time
 
-            # Send pressure command to all pumps
-            for pump in self.pump_arduinos:
-                pump.send_pressure_read_sensors(self.target_pressure)
-            
-            # Read sensor data
-            if self.sensor_is_pump:
-                # Sensor data already obtained from one of the pumps above
-                # Get the data from the pump that is also the sensor
-                pump_index = self.pump_arduino_ids.index(self.sensor_arduino_id)
-                sensors = self.pump_arduinos[pump_index].send_pressure_read_sensors(self.target_pressure)
-            else:
+            # Check if we should cut off supply after 10 seconds
+            if not self.supply_cutoff and elapsed >= 10.0:
+                self.supply_cutoff = True
+                self.cutoff_time = elapsed
+                logger.info(
+                    f"\n🔴 SUPPLY CUT OFF at {elapsed:.1f}s - Monitoring pressure decay..."
+                )
+                # Store pressure values at cutoff
+                for i in range(4):
+                    if len(self.sensor_data[i]) > 0:
+                        self.pressure_at_cutoff[i] = self.sensor_data[i][-1]
+
+            # Send pressure command to all pumps (0 after cutoff) and collect sensor data if needed
+            command_pressure = 0.0 if self.supply_cutoff else self.target_pressure
+            sensors = [0.0] * 4  # Default value
+            for i, pump in enumerate(self.pump_arduinos):
+                result = pump.send_pressure_read_sensors(command_pressure)
+                # If this pump is also the sensor, save its sensor readings
+                if (
+                    self.sensor_is_pump
+                    and self.pump_arduino_ids[i] == self.sensor_arduino_id
+                ):
+                    sensors = result
+
+            # Read sensor data from separate sensor Arduino if needed
+            if not self.sensor_is_pump:
                 # Send dummy command (0 pressure) to sensor Arduino to trigger data send
                 sensors = self.sensor_arduino.send_pressure_read_sensors(0.0)
 
@@ -255,15 +279,40 @@ class LeakageTest:
                             logger.warning(f"   Pressure drop: {pressure_drop:.2f} PSI")
 
             # Check if test duration exceeded
-            if self.stabilization_complete and elapsed >= (
-                LeakageTestConfig.STABILIZATION_TIME + LeakageTestConfig.TEST_DURATION
+            if self.supply_cutoff and elapsed >= (
+                10.0 + LeakageTestConfig.TEST_DURATION
             ):
                 logger.info("\nTest duration completed.")
+                # Calculate decay rates
+                self._calculate_decay_rates()
                 break
 
             time.sleep(1.0 / LeakageTestConfig.SAMPLE_RATE)
 
         self._print_results()
+
+    def _calculate_decay_rates(self):
+        """Calculate pressure decay rate for each sensor after cutoff"""
+        if not self.supply_cutoff or self.cutoff_time is None:
+            return
+
+        for i in range(4):
+            if self.pressure_at_cutoff[i] is not None and len(self.sensor_data[i]) > 0:
+                # Find data points after cutoff
+                cutoff_idx = None
+                for idx, t in enumerate(self.timestamps):
+                    if t >= self.cutoff_time:
+                        cutoff_idx = idx
+                        break
+
+                if cutoff_idx is not None and cutoff_idx < len(self.sensor_data[i]) - 1:
+                    # Calculate average decay rate (PSI per second)
+                    time_elapsed = self.timestamps[-1] - self.cutoff_time
+                    if time_elapsed > 0:
+                        pressure_drop = (
+                            self.pressure_at_cutoff[i] - self.sensor_data[i][-1]
+                        )
+                        self.decay_rates[i] = pressure_drop / time_elapsed
 
     def _print_results(self):
         """Print test results summary"""
@@ -297,6 +346,33 @@ class LeakageTest:
                 else:
                     logger.info(f"   Sensor {i + 1}: {final:.2f} PSI")
 
+        # Print decay rate analysis
+        if self.supply_cutoff and any(r is not None for r in self.decay_rates):
+            logger.info(
+                f"\n📊 PRESSURE DECAY ANALYSIS (after cutoff at {self.cutoff_time:.1f}s):"
+            )
+            logger.info(
+                f"   Pressure at cutoff: {[f'{p:.2f}' if p else 'N/A' for p in self.pressure_at_cutoff]} PSI"
+            )
+
+            decay_info = []
+            for i in range(4):
+                if self.decay_rates[i] is not None:
+                    decay_info.append((i + 1, self.decay_rates[i]))
+
+            # Sort by decay rate (highest to lowest)
+            decay_info.sort(key=lambda x: x[1], reverse=True)
+
+            logger.info(f"\n   Decay rates (PSI/second) - Fastest to Slowest:")
+            for sensor_num, rate in decay_info:
+                logger.info(f"      Sensor {sensor_num}: {rate:.4f} PSI/s")
+
+            if decay_info:
+                fastest_sensor, fastest_rate = decay_info[0]
+                logger.info(
+                    f"\n   🏆 Sensor {fastest_sensor} has the FASTEST pressure drop: {fastest_rate:.4f} PSI/s"
+                )
+
         logger.info(f"{'=' * 60}\n")
 
     def start_test_thread(self):
@@ -324,7 +400,7 @@ class LeakageTest:
         # Clean up all pump connections
         for pump in self.pump_arduinos:
             pump.cleanup()
-        
+
         # Clean up sensor if separate
         if not self.sensor_is_pump:
             self.sensor_arduino.cleanup()
@@ -348,7 +424,7 @@ class RealtimePlotter:
 
         self.ax.set_xlabel("Time (seconds)", fontsize=12)
         self.ax.set_ylabel("Pressure (PSI)", fontsize=12)
-        
+
         pump_ids_str = ", ".join(map(str, test.pump_arduino_ids))
         self.ax.set_title(
             f"Leakage Test - Pumps: [{pump_ids_str}] | Sensor: {test.sensor_arduino_id}",
@@ -359,6 +435,7 @@ class RealtimePlotter:
         self.ax.grid(True, alpha=0.3)
 
         self.threshold_line = None
+        self.cutoff_line = None
 
     def update(self, frame):
         """Update plot with new data"""
@@ -402,6 +479,22 @@ class RealtimePlotter:
                 alpha=0.5,
             )
 
+        # Add visual indicator for supply cutoff
+        if (
+            self.test.supply_cutoff
+            and self.cutoff_line is None
+            and self.test.cutoff_time is not None
+        ):
+            self.cutoff_line = self.ax.axvline(
+                x=self.test.cutoff_time,
+                color="orange",
+                linestyle="-",
+                linewidth=3,
+                label="Supply Cutoff",
+                alpha=0.8,
+            )
+            self.ax.legend(loc="upper right")
+
         return self.lines
 
     def show(self):
@@ -416,11 +509,13 @@ def get_device_ids(prompt_message: str) -> Union[int, List[int]]:
     available_ids = list(range(1, 9))
     while True:
         try:
-            response = input(f"{prompt_message} {available_ids} (comma-separated for multiple): ").strip()
-            
+            response = input(
+                f"{prompt_message} {available_ids} (comma-separated for multiple): "
+            ).strip()
+
             # Check if comma-separated list
-            if ',' in response:
-                ids = [int(x.strip()) for x in response.split(',')]
+            if "," in response:
+                ids = [int(x.strip()) for x in response.split(",")]
                 if all(device_id in available_ids for device_id in ids):
                     return ids
                 else:
@@ -466,18 +561,19 @@ def main():
     print("\n" + "=" * 60)
     print("POUCH LEAKAGE TEST TOOL - MULTI-PUMP SUPPORT")
     print("=" * 60)
-    
+
     # Example: Use hardcoded values or uncomment to get user input
-    pump_arduino_ids = [3,6,7,8]  # Can be single ID or list like [6, 7, 8]
+    pump_arduino_ids = [3, 6, 7, 8]  # Can be single ID or list like [6, 7, 8]
+    # pump_arduino_ids = [3, 6, 7, 8]  # Can be single ID or list like [6, 7, 8]
     # pump_arduino_ids = get_device_ids("\nEnter Pump Arduino ID(s)")
-    
-    sensor_arduino_id = 3
+
+    sensor_arduino_id = 7
     # sensor_arduino_id = get_device_ids("Enter Sensor Arduino ID (single value only)")
     # if isinstance(sensor_arduino_id, list):
     #     print("Sensor Arduino must be a single ID")
     #     return 1
-    
-    test_pressure = 3
+
+    test_pressure = 2
     # test_pressure = get_test_pressure()
 
     test = LeakageTest(pump_arduino_ids, sensor_arduino_id, test_pressure)

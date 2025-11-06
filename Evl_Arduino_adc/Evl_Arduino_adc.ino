@@ -45,10 +45,11 @@ byte mac[] = {0xBE, 0xDE, 0xBE, 0xED , 0xFE, 0xED}; //ARD 3
 
 char hostname[] = "arduino"; // Set a hostname for the Arduino
 byte ip[] = { 10,211,215,31}; //set unique Arduino ip addr #1 (ex: Ard 2 = 21)
+int port = 10003; //unique ard port num
 byte subnet[] = { 255, 255, 0, 0 };
 //byte pcIP[] = { 10,203,49,197 }; //Replace with PC IP 10,203,49,197
 byte pcIP[] = {10,211,215,251};
-int port = 10003; //unique ard port num
+
 
 EthernetServer server(6666);
 EthernetClient client;
@@ -139,7 +140,7 @@ float received_float = 0.0;
   
     //Calculating Pressure from pressure sensor
     pressure_volt = Bit0*(5.0/1023.0);
-    pressure = ((20.0-0.0)*(pressure_volt-(0.1*5.0)))/(0.8*5.0);
+    pressure = ((30.0-0.0)*(pressure_volt-(0.1*5.0)))/(0.8*5.0);
 
     uint8_t packed_data[12];
     
