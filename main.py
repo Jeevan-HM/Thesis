@@ -3,6 +3,9 @@ Simplified Soft Robot Pressure Control System
 
 Configuration: Modify the variables below
 Run with: python main.py
+
+Optional: For AI auto-descriptions, add to .env file:
+  GEMINI_API_KEY=your-api-key-here
 """
 
 import datetime
@@ -15,6 +18,23 @@ import struct
 import sys
 import threading
 import time
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()  # Load environment variables from .env file
+except ImportError:
+    print("Warning: python-dotenv not installed, proceeding without it.")
+    pass  # dotenv not required, will use system env vars
+
+try:
+    from google import genai
+
+    GEMINI_AVAILABLE = True
+    print("Google Generative AI module loaded. Auto-descriptions enabled.")
+except ImportError:
+    GEMINI_AVAILABLE = False
+    print("Warning: google-genai not available. Auto-descriptions disabled.")
 
 try:
     import numpy as np
@@ -43,7 +63,7 @@ TARGET_PRESSURES = [5.0, 5.0, 5.0, 5.0]
 PC_ADDRESS = "10.211.215.251"
 
 # Experiment settings
-EXPERIMENT_DURATION = 300.0
+EXPERIMENT_DURATION = 120.0
 END_AFTER_ONE_CYCLE = True
 
 # Graceful exit settings
@@ -54,6 +74,9 @@ USE_MOCAP = True
 MOCAP_PORT = "tcp://127.0.0.1:3885"
 MOCAP_DATA_SIZE = 21
 
+# Gemini API settings
+USE_GEMINI_AUTO_DESCRIPTION = True
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")  # Set via environment variable
 WAVE_FUNCTION = "axial"
 # WAVE_FUNCTION = "circular"
 
@@ -167,6 +190,39 @@ class DataLogger:
         self.data_buffer = []
         self.lock = threading.Lock()
 
+    def generate_ai_description(self) -> str:
+        """Generate a brief experiment description using Gemini Flash"""
+        if (
+            not GEMINI_AVAILABLE
+            or not USE_GEMINI_AUTO_DESCRIPTION
+            or not GEMINI_API_KEY
+        ):
+            return "No description provided"
+
+        try:
+            # No need to import again, it's done at the top level
+            client = genai.Client()
+            model = "gemini-2.5-flash"
+            # Create a concise prompt with experiment details
+            prompt = f"""
+                        Generate a 1-sentence experiment description (max 15 words) for:
+                        Type: {WAVE_FUNCTION}
+                        Duration: {int(EXPERIMENT_DURATION)}s
+                        Arduinos: {ARDUINO_IDS}
+                        Pressures: {TARGET_PRESSURES} PSI
+                        MoCap: {"Yes" if USE_MOCAP and MOCAP_AVAILABLE else "No"}
+                    """
+
+            response = client.models.generate_content(model=model, contents=prompt)
+
+            description = response.text.strip()
+            logger.info(f"AI description: {description}")
+            return description
+
+        except Exception as e:
+            logger.warning(f"Failed to generate AI description: {e}")
+            return "Auto-description failed"
+
     def start(self):
         now = datetime.datetime.now()
         folder = "experiments"
@@ -275,8 +331,12 @@ class DataLogger:
                     grp.attrs["mocap_port"] = MOCAP_PORT
                     grp.attrs["mocap_data_size"] = MOCAP_DATA_SIZE
 
+                # Use provided description
                 if description:
                     grp.attrs["description"] = description
+                else:
+                    # Fallback if no description is provided
+                    grp.attrs["description"] = "No description provided"
 
                 logger.info(
                     f"Saved {len(self.data_buffer)} samples to {self.exp_group_name}"
@@ -326,9 +386,9 @@ def axial(controller):
     # Arduino 6 (index 1)
     controller.desired[1] = 2.0
     # Arduino 7 (index 2) - Start at 0 psi (bottom of its wave)
-    controller.desired[2] = WAVE_CENTER - WAVE_AMPLITUDE
+    controller.desired[3] = WAVE_CENTER - WAVE_AMPLITUDE
     # Arduino 8 (index 3)
-    controller.desired[3] = 2.0
+    controller.desired[2] = 2.0
 
     # Send all initial pressures
     controller.send_all()
@@ -338,7 +398,7 @@ def axial(controller):
     start = time.time()
     while controller.running:
         controller.desired[1] = 2.0  # Arduino 6
-        controller.desired[3] = 2.0  # Arduino 8
+        controller.desired[2] = 2.0  # Arduino 8
 
         t = time.time() - start  # Get elapsed time
 
@@ -348,7 +408,7 @@ def axial(controller):
 
         # Set desired pressure, clamping between 0 and 100 as a safety
         # (same as the original function's clamping)
-        controller.desired[2] = max(0.0, min(10.0, p_arduino7))
+        controller.desired[3] = max(0.0, min(10.0, p_arduino7))
 
         # 3. Send all updated pressures to the controller
         controller.send_all()
@@ -567,16 +627,42 @@ class Controller:
         if self.mocap:
             self.mocap.stop()
 
-        # Prompt for description
-        try:
+        # Prompt for description or use AI
+        description = None
+        has_api_key = GEMINI_API_KEY and len(GEMINI_API_KEY) > 0
+
+        if USE_GEMINI_AUTO_DESCRIPTION and GEMINI_AVAILABLE and has_api_key:
+            # AI is available - generate description and ask for additions
             print("\n" + "=" * 60)
-            description = input(
-                "Enter experiment description (or press Enter to skip): "
-            ).strip()
-            if not description:
-                description = "No description provided"
-        except (EOFError, KeyboardInterrupt):
-            description = "Interrupted - no description"
+            print("Generating AI description...")
+            ai_description = self.logger.generate_ai_description()
+            description = ai_description  # Default to AI description
+
+            try:
+                additional_desc = input(
+                    "Enter additional description (optional, press Enter to skip): "
+                ).strip()
+                if additional_desc:
+                    # Combine descriptions
+                    description = f"{ai_description}. {additional_desc}"
+            except (EOFError, KeyboardInterrupt):
+                print("\nSkipping additional description.")
+                # `description` is already set to ai_description, so we're good
+
+        else:
+            # No AI available or configured, ask for manual description
+            try:
+                print("\n" + "=" * 60)
+                if not has_api_key and USE_GEMINI_AUTO_DESCRIPTION:
+                    print("AI descriptions enabled, but GEMINI_API_KEY is not set.")
+
+                description = input(
+                    "Enter experiment description (or press Enter to skip): "
+                ).strip()
+                if not description:
+                    description = "No description provided"
+            except (EOFError, KeyboardInterrupt):
+                description = "Interrupted - no description"
 
         self.logger.stop(description)
         self.arduino.cleanup()
@@ -590,6 +676,9 @@ def main():
     logger.info(f"Pressures: {TARGET_PRESSURES} psi")
     logger.info(f"Wave: {WAVE_FUNCTION}")
     logger.info(f"Mocap: {'ON' if USE_MOCAP and MOCAP_AVAILABLE else 'OFF'}")
+    logger.info(
+        f"AI Descriptions: {'ON' if USE_GEMINI_AUTO_DESCRIPTION and GEMINI_AVAILABLE and GEMINI_API_KEY else 'OFF'}"
+    )
     logger.info(f"Rampdown: {RAMPDOWN_DURATION}s")
     logger.info("=" * 50)
 

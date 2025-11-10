@@ -37,7 +37,8 @@ plt.rcParams.update(
         # --- Title Fonts ---
         "axes.titlesize": BASE_FONT_SIZE
         + 4,  # Controls the subplot titles (e.g., "Measured Pressures (Segment 1)")
-        "figure.titlesize": BASE_FONT_SIZE + 6,  # Controls the main figure title (e.g., "Sensor & Control Data...")
+        "figure.titlesize": BASE_FONT_SIZE
+        + 6,  # Controls the main figure title (e.g., "Sensor & Control Data...")
         # --- Legend Font ---
         "legend.fontsize": BASE_FONT_SIZE,  # Controls the legend font size
     }
@@ -183,7 +184,6 @@ SENSOR_CONTROL_CONFIG_2 = [
         "columns": MEASURED_PRESSURE_SEGMENT2_COLS,
         "labels": [
             "Segment_2_pouch_1",
-            "Segment_2_pouch_1",
             "Segment_2_pouch_2",
             "Segment_2_pouch_3",
             "Segment_2_pouch_4",
@@ -199,97 +199,97 @@ SENSOR_CONTROL_CONFIG_2 = [
 # =================================================================================
 def list_h5_experiments():
     """List all HDF5 files and their experiments."""
-    h5_files = [f for f in os.listdir(EXPERIMENTS_BASE_DIR) if f.endswith('.h5')]
-    
+    h5_files = [f for f in os.listdir(EXPERIMENTS_BASE_DIR) if f.endswith(".h5")]
+
     if not h5_files:
         print("No HDF5 files found in experiments directory!")
         return None
-    
-    print("\n" + "="*80)
+
+    print("\n" + "=" * 80)
     print("Available HDF5 Files:")
-    print("="*80)
-    
+    print("=" * 80)
+
     all_experiments = []
-    
+
     for h5_file in sorted(h5_files):
         filepath = os.path.join(EXPERIMENTS_BASE_DIR, h5_file)
         print(f"\n📁 {h5_file}")
-        
-        with h5py.File(filepath, 'r') as f:
-            experiments = sorted([k for k in f.keys() if k.startswith('exp_')])
-            
+
+        with h5py.File(filepath, "r") as f:
+            experiments = sorted([k for k in f.keys() if k.startswith("exp_")])
+
             for exp_name in experiments:
                 exp = f[exp_name]
-                timestamp = exp.attrs.get('timestamp', 'N/A')
-                wave = exp.attrs.get('wave_function', 'Unknown')
-                desc = exp.attrs.get('description', 'No description')
-                samples = len(exp['data'])
-                
+                timestamp = exp.attrs.get("timestamp", "N/A")
+                wave = exp.attrs.get("wave_function", "Unknown")
+                desc = exp.attrs.get("description", "No description")
+                samples = len(exp["data"])
+
                 all_experiments.append((filepath, exp_name))
-                
+
                 print(f"  {len(all_experiments)}. {exp_name}")
                 print(f"     Time: {timestamp}")
                 print(f"     Wave: {wave}")
                 print(f"     Samples: {samples}")
                 print(f"     Description: {desc}")
-    
-    print("\n" + "="*80)
+
+    print("\n" + "=" * 80)
     return all_experiments
 
 
 def select_experiment():
     """Auto-selects latest experiment by timestamp."""
-    h5_files = [f for f in os.listdir(EXPERIMENTS_BASE_DIR) if f.endswith('.h5')]
-    
+    h5_files = [f for f in os.listdir(EXPERIMENTS_BASE_DIR) if f.endswith(".h5")]
+
     if not h5_files:
         print("No HDF5 files found!")
         return None, None
-    
+
     all_experiments = []
     for h5_file in h5_files:
         filepath = os.path.join(EXPERIMENTS_BASE_DIR, h5_file)
-        with h5py.File(filepath, 'r') as f:
+        with h5py.File(filepath, "r") as f:
             for exp_name in f.keys():
-                if exp_name.startswith('exp_'):
-                    timestamp_str = f[exp_name].attrs.get('timestamp', 'N/A')
+                if exp_name.startswith("exp_"):
+                    timestamp_str = f[exp_name].attrs.get("timestamp", "N/A")
                     try:
                         timestamp = datetime.fromisoformat(timestamp_str)
                     except (ValueError, TypeError):
                         timestamp = datetime.min
                     all_experiments.append((filepath, exp_name, timestamp))
-    
+
     if not all_experiments:
         print("No experiments found!")
         return None, None
-    
+
     all_experiments.sort(key=lambda x: x[2], reverse=True)
     latest = all_experiments[0]
     print(f"Loading: {latest[1]} ({latest[2].strftime('%Y-%m-%d %H:%M:%S')})")
-    
+
     return latest[0], latest[1]
 
 
 def load_h5_experiment(h5_file, exp_name):
     """Load experiment data from HDF5 and return as DataFrame."""
-    with h5py.File(h5_file, 'r') as f:
+    with h5py.File(h5_file, "r") as f:
         exp = f[exp_name]
-        
+
         # Load data and column names
-        data_array = exp['data'][:]
-        columns = list(exp.attrs['columns'])
-        
+        data_array = exp["data"][:]
+        columns = list(exp.attrs["columns"])
+
         # Get metadata
         metadata = {
-            'timestamp': exp.attrs.get('timestamp', 'N/A'),
-            'wave_function': exp.attrs.get('wave_function', 'Unknown'),
-            'description': exp.attrs.get('description', 'No description'),
-            'arduino_ids': list(exp.attrs.get('arduino_ids', [])),
-            'target_pressures': list(exp.attrs.get('target_pressures', [])),
+            "timestamp": exp.attrs.get("timestamp", "N/A"),
+            "wave_function": exp.attrs.get("wave_function", "Unknown"),
+            "description": exp.attrs.get("description", "No description"),
+            "arduino_ids": list(exp.attrs.get("arduino_ids", [])),
+            "target_pressures": list(exp.attrs.get("target_pressures", [])),
         }
-        
+
         # Create DataFrame
         df = pd.DataFrame(data_array, columns=columns)
-        
+
         print(f"\nMetadata:")
         print(f"  Timestamp: {metadata['timestamp']}")
         print(f"  Wave Function: {metadata['wave_function']}")
@@ -297,7 +297,7 @@ def load_h5_experiment(h5_file, exp_name):
         print(f"  Arduino IDs: {metadata['arduino_ids']}")
         print(f"  Target Pressures: {metadata['target_pressures']}")
         print(f"  Data Shape: {df.shape}")
-        
+
         return df
 
 
@@ -307,14 +307,14 @@ def get_experiment():
     Returns path to load data from - either CSV or HDF5.
     """
     # Check if we should use HDF5
-    h5_files = [f for f in os.listdir(EXPERIMENTS_BASE_DIR) if f.endswith('.h5')]
-    
+    h5_files = [f for f in os.listdir(EXPERIMENTS_BASE_DIR) if f.endswith(".h5")]
+
     if h5_files:
         # Use HDF5
         h5_file, exp_name = select_experiment()
         if h5_file and exp_name:
-            return ('h5', h5_file, exp_name)
-    
+            return ("h5", h5_file, exp_name)
+
     # Fallback to CSV (original code)
     try:
         if not os.path.exists(EXPERIMENTS_BASE_DIR):
@@ -379,13 +379,15 @@ def get_experiment():
         latest_test_file = max(test_nums, key=lambda x: x[0])[1]
         filename = os.path.join(latest_folder_path, latest_test_file)
         print(f"Latest experiment file: {filename}")
-        return ('csv', filename)
+        return ("csv", filename)
     except FileNotFoundError:
         print(f"Error: Directory not found. Check 'EXPERIMENTS_BASE_DIR'.")
         exit()
     except RuntimeError as e:
         print(f"Error finding experiment file: {e}")
         exit()
+
+
 # =================================================================================
 
 
@@ -548,9 +550,9 @@ def main():
     result = get_experiment()
     if not result:
         return
-    
+
     # Load data based on file type
-    if result[0] == 'h5':
+    if result[0] == "h5":
         _, h5_file, exp_name = result
         print(f"\nLoading HDF5: {exp_name} from {os.path.basename(h5_file)}")
         data = load_h5_experiment(h5_file, exp_name)
