@@ -379,16 +379,16 @@ def circular(controller):
 def axial(controller):
     WAVE_FREQ = 0.1  # Hz (controls speed of oscillation)
     WAVE_CENTER = 5.0  # psi (center of 0-10 psi range)
-    WAVE_AMPLITUDE = 5.0  # psi (amplitude for 0-10 psi range)
+    WAVE_AMPLITUDE = 3.0  # psi (amplitude for 0-10 psi range)
 
     # Arduino 3 (index 0)
     controller.desired[0] = 2.0
     # Arduino 6 (index 1)
     controller.desired[1] = 2.0
     # Arduino 7 (index 2) - Start at 0 psi (bottom of its wave)
-    controller.desired[3] = WAVE_CENTER - WAVE_AMPLITUDE
+    controller.desired[2] = WAVE_CENTER - WAVE_AMPLITUDE
     # Arduino 8 (index 3)
-    controller.desired[2] = 2.0
+    controller.desired[3] = 2.0
 
     # Send all initial pressures
     controller.send_all()
@@ -398,7 +398,7 @@ def axial(controller):
     start = time.time()
     while controller.running:
         controller.desired[1] = 2.0  # Arduino 6
-        controller.desired[2] = 2.0  # Arduino 8
+        controller.desired[3] = 2.0  # Arduino 8
 
         t = time.time() - start  # Get elapsed time
 
@@ -408,7 +408,7 @@ def axial(controller):
 
         # Set desired pressure, clamping between 0 and 100 as a safety
         # (same as the original function's clamping)
-        controller.desired[3] = max(0.0, min(10.0, p_arduino7))
+        controller.desired[2] = max(0.0, min(10.0, p_arduino7))
 
         # 3. Send all updated pressures to the controller
         controller.send_all()

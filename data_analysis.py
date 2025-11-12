@@ -312,6 +312,10 @@ def get_experiment():
     if h5_files:
         # Use HDF5
         h5_file, exp_name = select_experiment()
+        h5_file, exp_name = (
+            "/home/g1/Developer/Thesis/experiments/2025_November.h5",
+            "exp_028_axial_Nov12_10h41m",
+        )  # --- FOR TESTING ONLY ---
         if h5_file and exp_name:
             return ("h5", h5_file, exp_name)
 
