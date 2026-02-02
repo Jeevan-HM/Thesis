@@ -8,6 +8,7 @@ import datetime
 import logging
 import math
 import os
+import random
 import signal
 import socket
 import struct
@@ -57,10 +58,10 @@ USE_LIVE_PLOT = True and HAS_MPL
 # Experiment Parameters
 RANGES = [3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]  # Max PSI
 RATES = [1.0, 0.5]  # PSI/s
-WAVE_TYPES = ["triangular", "sine"]
+WAVE_TYPES = ["triangular"]
 
-RUN_DURATION = 120.0  # seconds
-COOLDOWN_DURATION = 20.0  # seconds
+RUN_DURATION = 20.0  # seconds
+COOLDOWN_DURATION = 0.0  # seconds
 RAMPDOWN_DURATION = 5.0  # seconds
 
 
@@ -358,6 +359,7 @@ class Controller:
         # Wave Parameters
         self.current_wave_type = "idle"  # triangular, sine, idle
         self.current_max_psi = 0.0
+        self.current_min_psi = 0.0
         self.current_rate = 1.0  # PSI/s
         self.wave_start_time = 0.0
 
@@ -414,40 +416,53 @@ class Controller:
 
             elif self.current_wave_type == "triangular":
                 max_p = self.current_max_psi
+                min_p = self.current_min_psi
                 rate = self.current_rate
                 if rate <= 0:
                     rate = 0.1
 
-                T = 2.0 * max_p / rate
-                if T == 0:
-                    T = 1.0
-
-                t = now - self.wave_start_time
-                t_cycle = t % T
-
-                if t_cycle < (T / 2.0):
-                    val = (max_p / (T / 2.0)) * t_cycle
+                height = max_p - min_p
+                # Prevent division by zero if max_p == min_p
+                if height <= 0:
+                    val = min_p
                 else:
-                    val = max_p * (1.0 - (t_cycle - (T / 2.0)) / (T / 2.0))
+                    T = 2.0 * height / rate
+                    if T == 0:
+                        T = 1.0
+
+                    t = now - self.wave_start_time
+                    t_cycle = t % T
+
+                    if t_cycle < (T / 2.0):
+                        val = min_p + (height / (T / 2.0)) * t_cycle
+                    else:
+                        val = min_p + height * (1.0 - (t_cycle - (T / 2.0)) / (T / 2.0))
 
             elif self.current_wave_type == "sine":
                 max_p = self.current_max_psi
+                min_p = self.current_min_psi
                 rate = self.current_rate
                 if rate <= 0:
                     rate = 0.1
 
-                # Match period of triangular wave
-                T = 2.0 * max_p / rate
-                if T == 0:
-                    T = 1.0
-                f = 1.0 / T
+                height = max_p - min_p
+                if height <= 0:
+                    val = min_p
+                else:
+                    # Match period of triangular wave
+                    T = 2.0 * height / rate
+                    if T == 0:
+                        T = 1.0
+                    f = 1.0 / T
 
-                t = now - self.wave_start_time
+                    t = now - self.wave_start_time
 
-                # Shift by -pi/2 to start at 0
-                val = (max_p / 2.0) * (
-                    1.0 + math.sin(2.0 * math.pi * f * t - 0.5 * math.pi)
-                )
+                    # Sine wave from min_p to max_p
+                    # Amplitude is height/2, offset is min_p + height/2
+                    # sin(2*pi*f*t - pi/2) makes it start at minimum (-1)
+                    mid_p = min_p + height / 2.0
+                    amp = height / 2.0
+                    val = mid_p + amp * math.sin(2.0 * math.pi * f * t - 0.5 * math.pi)
 
             val = max(0.0, min(val, 25.0))
 
@@ -497,23 +512,35 @@ class Controller:
 
         start_exp = time.perf_counter()
 
+        # Configurations for 20 randomized experiments
+        # Min pressure: random of [0, 1, 2]
+        # Max pressure: random of [6, 7, 8, 9, 10]
+        # Start of each experiment is effectively random due to current time
+
+        total_runs = 20
         configs = []
-        for w_type in WAVE_TYPES:
-            for rate in RATES:
-                for max_p in RANGES:
-                    configs.append((w_type, rate, max_p))
+        possible_min = [0.0, 1.0, 2.0]
+        possible_max = [6.0, 7.0, 8.0, 9.0, 10.0]
 
-        total_runs = len(configs)
-        print(
-            f"Total runs: {total_runs}. Est duration: {total_runs * (RUN_DURATION + COOLDOWN_DURATION) / 60:.1f} mins"
-        )
+        # Pre-generate configs to print them
+        for _ in range(total_runs):
+            w_type = random.choice(WAVE_TYPES)
+            # Use random rate from available RATES or stick to one?
+            # Original code iterated over RATES. Let's pick randomly.
+            rate = random.choice(RATES)
+            min_p = random.choice(possible_min)
+            max_p = random.choice(possible_max)
+            configs.append((w_type, rate, min_p, max_p))
 
-        for i, (w_type, rate, max_p) in enumerate(configs):
+        print(f"Total runs: {total_runs}. Duration per run is dynamic (1 cycle).")
+
+        for i, (w_type, rate, min_p, max_p) in enumerate(configs):
             if not self.running:
                 break
 
             # Setup
-            run_name = f"{w_type}_0-{int(max_p)}psi_{rate}psi-s"
+            # Prepend index to ensure uniqueness (e.g. 01_triangular...)
+            run_name = f"{i + 1:02d}_{w_type}_{int(min_p)}-{int(max_p)}psi_{rate}psi-s"
             fname = f"{run_name}.csv"
 
             print(f"[{i + 1}/{total_runs}] Starting: {run_name}")
@@ -521,15 +548,23 @@ class Controller:
             # Start Logging
             self.logger.start_new_file(fname)
 
+            # Calculate duration for 1 cycle
+            height = max_p - min_p
+            if height <= 0:
+                cycle_duration = 5.0  # Fallback
+            else:
+                cycle_duration = 2.0 * height / rate
+
             # Start Wave
             self.current_max_psi = max_p
+            self.current_min_psi = min_p
             self.current_rate = rate
             self.current_wave_type = w_type
             self.wave_start_time = time.perf_counter()
 
             # Run
             run_start = time.perf_counter()
-            while (time.perf_counter() - run_start) < RUN_DURATION and self.running:
+            while (time.perf_counter() - run_start) < cycle_duration and self.running:
                 self._update_plot()
                 time.sleep(0.1)
 

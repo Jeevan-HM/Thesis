@@ -70,7 +70,7 @@ ARDUINO_PORTS = [10001, 10002, 10003, 10004, 10005, 10006, 10007, 10008]
 # Experiment settings
 EXPERIMENT_DURATION = 0.0  # Will be calculated below
 RAMPDOWN_DURATION = 5.0  # seconds to ramp down all pressures to zero
-CALIBRATION_PSI = 1.0  # Target PSI for sensor calibration checking
+CALIBRATION_PSI = 0.0  # Target PSI for sensor calibration checking
 CALIBRATION_STABILIZATION_TIME = 10.0  # Seconds to wait before measuring
 
 
@@ -81,10 +81,11 @@ TARGET_PRESSURES = [2.0 for _ in ARDUINO_IDS]
 WAVE_FUNCTION = "sequence"  # "sequence", "axial", "circular", "triangular", "static"
 
 # Sequence Configuration
-SEQ_WAVE_TYPES = ["axial", "circular", "triangular"]
-SEQ_SEG1_PRESSURES = [1.0]
-SEQ_MAX_PRESSURES = [5.0, 10.0]
-SEQ_WAVE_DURATION = 100.0  # Duration for each wave type in the sequence
+# SEQ_WAVE_TYPES = ["axial", "circular", "triangular"]
+SEQ_WAVE_TYPES = ["axial"]
+SEQ_SEG1_PRESSURES = [2.0]
+SEQ_MAX_PRESSURES = [10.0]
+SEQ_WAVE_DURATION = 180.0  # Duration for each wave type in the sequence
 SEQ_COOLDOWN_DURATION = 5.0  # Duration of 2psi hold between waves
 SEQ_SEG1_REFILL_PERIOD = 100.0  # Target period for refilling Segment 1
 SEQ_REFILL_ACTION_DURATION = 5.0  # Duration of the refill pause/interruption
@@ -1518,8 +1519,8 @@ class Controller:
 
 def main():
     # Prompts for Refill Options
-    refill_mode = "periodic"  # "periodic", "end_of_wave", or "constant_2psi"
-    refill_period = SEQ_SEG1_REFILL_PERIOD
+    refill_mode = "end_of_wave"  # "periodic", "end_of_wave", or "constant_2psi"
+    refill_period = float("inf")
 
     try:
         if WAVE_FUNCTION == "sequence":
@@ -1529,20 +1530,8 @@ def main():
             print("[3] Constant 2 PSI (Seg 1)")
             print("[4] Initial Only (No refill during exp)")
 
-            ans = input("Choice [1/2/3/4]: ").strip()
-            if ans == "2":
-                refill_mode = "end_of_wave"
-                print("Mode: End of Wave Profile (Refill after every wave)")
-                refill_period = float("inf")  # Disable periodic check
-            elif ans == "3":
-                refill_mode = "constant_2psi"
-                print("Mode: Constant 2 PSI on Segment 1")
-                refill_period = float("inf")  # Disable periodic check
-            elif ans == "4":
-                refill_mode = "initial_only"
-                print("Mode: Initial Refill Only (No mid-experiment refills)")
-                refill_period = float("inf")
-            else:
+            ans = input("Choice [1/2/3/4] (Default: 4): ").strip()
+            if ans == "1":
                 refill_mode = "periodic"
                 # Ask for period
                 ans = input(
@@ -1556,6 +1545,26 @@ def main():
                     except ValueError:
                         print(f"Invalid input, using default: {SEQ_SEG1_REFILL_PERIOD}")
                 print(f"Mode: Periodic ({refill_period}s)")
+            elif ans == "2":
+                refill_mode = "end_of_wave"
+                print("Mode: End of Wave Profile (Refill after every wave)")
+                refill_period = float("inf")  # Disable periodic check
+            elif ans == "3":
+                refill_mode = "constant_2psi"
+                print("Mode: Constant 2 PSI on Segment 1")
+                refill_period = float("inf")  # Disable periodic check
+            elif ans == "" or ans == "4":
+                refill_mode = "initial_only"
+                print("Mode: Initial Refill Only (No mid-experiment refills)")
+                refill_period = float("inf")
+            else:
+                # Default fallback if they typed something else, or kept it as periodic
+                # If we changed default to 2, we need to handle "else" carefully.
+                # Let's assume anything else is also periodic if they typed garbage?
+                # Or just loop back?
+                # Given the original code:
+                # `else: refill_mode = "periodic"` was the default for "1".
+                pass
 
     except (EOFError, KeyboardInterrupt):
         pass  # Use defaults
