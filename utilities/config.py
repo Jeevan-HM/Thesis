@@ -75,6 +75,9 @@ COLUMNS_TO_DROP = [
     "pm_8_2",
     "pm_8_3",
     "pm_8_4",
+    # Config columns to drop
+    "config_seg1_psi",
+    "config_max_psi",
 ]
 
 # =================================================================================

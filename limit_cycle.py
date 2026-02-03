@@ -521,7 +521,7 @@ def run_prc_taps_comparison(
     df: pd.DataFrame,
     reservoir_cols: List[str],
     context_cols: Optional[List[str]] = None,
-    tap_values: List[int] = [0, 1, 5, 10, 15, 20, 25, 30],
+    tap_values: List[int] = [0, 1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
     top_marker: str = "Rigid_body_2",
 ) -> pd.DataFrame:
     """
@@ -1432,7 +1432,7 @@ def main():
             df,
             reservoir_cols,
             context_cols,
-            tap_values=[0, 1, 5, 10, 15, 20, 25, 30],
+            tap_values=[0, 1, 5, 10, 15, 20, 25, 30, 35, 40, 45],
             top_marker=args.top_marker,
         )
         plot_taps_comparison(taps_results)
