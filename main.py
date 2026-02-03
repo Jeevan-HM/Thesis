@@ -82,9 +82,9 @@ WAVE_FUNCTION = "sequence"  # "sequence", "axial", "circular", "triangular", "st
 
 # Sequence Configuration
 # SEQ_WAVE_TYPES = ["axial", "circular", "triangular"]
-SEQ_WAVE_TYPES = ["axial"]
+SEQ_WAVE_TYPES = ["triangular"]
 SEQ_SEG1_PRESSURES = [3.0]
-SEQ_MAX_PRESSURES = [5, 10.0]
+SEQ_MAX_PRESSURES = [10]
 SEQ_WAVE_DURATION = 180.0  # Duration for each wave type in the sequence
 SEQ_COOLDOWN_DURATION = 20.0  # Duration of 2psi hold between waves
 SEQ_SEG1_REFILL_PERIOD = 100.0  # Target period for refilling Segment 1
@@ -943,11 +943,12 @@ class Controller:
         # --- Calibration Prompt ---
         try:
             print("\n" + "=" * 40)
-            cal_input = (
-                input(f"Calibrate sensors at {CALIBRATION_PSI} PSI? [y/N]: ")
-                .strip()
-                .lower()
-            )
+            cal_input = "y"
+            # cal_input = (
+            #     input(f"Calibrate sensors at {CALIBRATION_PSI} PSI? [y/N]: ")
+            #     .strip()
+            #     .lower()
+            # )
             if cal_input == "y":
                 self.arduinos.calibrate(target_psi=CALIBRATION_PSI)
                 # Ramp down after calibration
