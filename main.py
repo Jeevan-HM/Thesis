@@ -82,8 +82,8 @@ WAVE_FUNCTION = "sequence"  # "sequence", "axial", "circular", "triangular", "st
 
 # Sequence Configuration
 # SEQ_WAVE_TYPES = ["axial", "circular", "triangular"]
-SEQ_WAVE_TYPES = ["triangular"]
-SEQ_SEG1_PRESSURES = [1.0]
+SEQ_WAVE_TYPES = ["axial"]
+SEQ_SEG1_PRESSURES = [5.0]
 SEQ_MAX_PRESSURES = [5]
 SEQ_WAVE_DURATION = 180.0  # Duration for each wave type in the sequence
 SEQ_COOLDOWN_DURATION = 20.0  # Duration of 2psi hold between waves
@@ -347,13 +347,18 @@ class ArduinoManager:
                     f"  Arduino {ARDUINO_IDS[i]} Sensor {s_j + 1}: {offset:+.4f} PSI (Avg Read: {avg:.4f})"
                 )
 
-    def ramp_down(self, seconds: float) -> None:
+    def ramp_down(
+        self, seconds: float, initial_pressures: Optional[List[float]] = None
+    ) -> None:
         """Linearly ramp all pressures down to zero over given time."""
         if seconds <= 0:
             return
         start = time.perf_counter()
-        # capture last commanded pressures if you want; here use TARGET_PRESSURES
-        initial = TARGET_PRESSURES.copy()
+        # Use provided initial pressures, or default to TARGET_PRESSURES
+        if initial_pressures is None:
+            initial = TARGET_PRESSURES.copy()
+        else:
+            initial = initial_pressures.copy()
         while True:
             elapsed = time.perf_counter() - start
             if elapsed >= seconds:
@@ -953,7 +958,9 @@ class Controller:
                 self.arduinos.calibrate(target_psi=CALIBRATION_PSI)
                 # Ramp down after calibration
                 logger.info("Ramping down after calibration...")
-                self.arduinos.ramp_down(3.0)
+                self.arduinos.ramp_down(
+                    3.0, initial_pressures=[CALIBRATION_PSI] * len(ARDUINO_IDS)
+                )
                 logger.info("Calibration complete. System vented.")
             else:
                 logger.info("Skipping calibration.")
@@ -1072,8 +1079,8 @@ class Controller:
             # Initial Prefill
             playlist.append(
                 {
-                    "wave": "cooldown",  # Re-use cooldown logic (all 2.0 psi)
-                    "seg1": 2.0,
+                    "wave": "initial_fill",  # Initial fill with seg1 at SEQ_SEG1_PRESSURES
+                    "seg1": SEQ_SEG1_PRESSURES[0],
                     "max_p": 0.0,
                     "duration": 10.0,  # Initial prefill duration
                     "offset": 0.0,
@@ -1163,25 +1170,32 @@ class Controller:
                 for i in range(1, len(ARDUINO_IDS)):
                     desired[i] = last_wave_pressures[i]
 
+            elif w_type == "initial_fill":
+                # Initial fill: Segment 1 to SEQ_SEG1_PRESSURES, others to TARGET_PRESSURES
+                desired[0] = seg1_target  # Segment 1 to SEQ_SEG1_PRESSURES[0]
+                for i in range(1, len(ARDUINO_IDS)):
+                    desired[i] = TARGET_PRESSURES[i]
+
             elif w_type == "cooldown":
-                # Regular cooldown, Seg 1 is OFF (0.0) unless it was the split entry?
+                # Regular cooldown: all segments to TARGET_PRESSURES
+                # Seg 1 is OFF (0.0) unless it was the split entry?
                 # In add_wave_item call above, we passed 0.0 for seg1.
-                desired = [2.0] * len(ARDUINO_IDS)
+                desired = TARGET_PRESSURES.copy()
                 desired[0] = seg1_target  # This will be 0.0 if we passed 0.0
 
             elif w_type == "axial":
                 # seg1 -> 0.0 (OFF during experiment)
-                # seg2 -> constant 2.0
+                # seg2 -> constant TARGET_PRESSURES
                 # seg3 -> sinusoid
-                # seg4 -> constant 2.0
+                # seg4 -> constant TARGET_PRESSURES
 
                 AXIAL_FREQ = 0.1
                 center = p_max / 2.0
                 ampl = p_max / 2.0
 
                 desired[0] = 0.0  # Turn OFF Segment 1 during wave
-                desired[1] = 2.0
-                desired[3] = 2.0
+                desired[1] = TARGET_PRESSURES[1]
+                desired[3] = TARGET_PRESSURES[3]
 
                 val = center + ampl * math.sin(
                     2.0 * math.pi * AXIAL_FREQ * effective_time
@@ -1231,9 +1245,9 @@ class Controller:
                     )
                     desired[idx] = val
 
-            # --- Override for Constant 2 PSI Mode ---
+            # --- Override for Constant Target Pressure Mode ---
             if self.refill_mode == "constant_2psi":
-                desired[0] = 2.0
+                desired[0] = TARGET_PRESSURES[0]
 
             # Save state for holding pressure during pause
             if w_type in ["axial", "triangular", "circular", "static"]:
@@ -1248,9 +1262,9 @@ class Controller:
                     seg1_target if i == 0 else 0.0 for i in range(len(ARDUINO_IDS))
                 ]
 
-            # --- Override for Constant 2 PSI Mode --- (Redundant check if placed after all types, but good)
+            # --- Override for Constant Target Pressure Mode --- (Redundant check if placed after all types, but good)
             if self.refill_mode == "constant_2psi":
-                desired[0] = 2.0
+                desired[0] = TARGET_PRESSURES[0]
 
             # Save state for holding pressure during pause (again?)
             if w_type in ["axial", "triangular", "circular", "static"]:
