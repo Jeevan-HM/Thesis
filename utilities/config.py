@@ -14,7 +14,18 @@ logger = logging.getLogger("utilities")
 # =================================================================================
 # ---- PATHS & FOLDERS ----
 # =================================================================================
-EXPERIMENTS_BASE_DIR = "/Users/g1/Developer/Soft-Robotic-Arm/experiments"
+# Check for Mac, Linux, then local
+_POSSIBLE_DIRS = [
+    "/Users/g1/Developer/Soft-Robotic-Arm/experiments",  # Mac (original)
+    "/home/jeevan/Developer/Soft-Robotic-Arm/experiments",  # Linux
+    os.path.join(os.getcwd(), "experiments"),  # Local fallback
+]
+
+EXPERIMENTS_BASE_DIR = os.path.join(os.getcwd(), "experiments")  # Default safe fallback
+for d in _POSSIBLE_DIRS:
+    if os.path.exists(d):
+        EXPERIMENTS_BASE_DIR = d
+        break
 CLEAN_OUTPUT_FOLDER_NAME = "cleaned_data"
 CLEAN_INPUT_FOLDER_NAME = "clean_data_folder"
 

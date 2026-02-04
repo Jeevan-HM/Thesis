@@ -82,7 +82,7 @@ WAVE_FUNCTION = "sequence"  # "sequence", "axial", "circular", "triangular", "st
 
 # Sequence Configuration
 # SEQ_WAVE_TYPES = ["axial", "circular", "triangular"]
-SEQ_WAVE_TYPES = ["circular"]
+SEQ_WAVE_TYPES = ["triangular"]
 SEQ_SEG1_PRESSURES = [1.0]
 SEQ_MAX_PRESSURES = [5]
 SEQ_WAVE_DURATION = 180.0  # Duration for each wave type in the sequence
