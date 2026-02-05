@@ -75,16 +75,16 @@ CALIBRATION_STABILIZATION_TIME = 10.0  # Seconds to wait before measuring
 
 
 # Desired base pressures (one per Arduino ID, in PSI)
-TARGET_PRESSURES = [2.0 for _ in ARDUINO_IDS]
+TARGET_PRESSURES = [1.0 for _ in ARDUINO_IDS]
 
 # Waveform to run
 WAVE_FUNCTION = "sequence"  # "sequence", "axial", "circular", "triangular", "static"
 
 # Sequence Configuration
 # SEQ_WAVE_TYPES = ["axial", "circular", "triangular"]
-SEQ_WAVE_TYPES = ["axial"]
-SEQ_SEG1_PRESSURES = [5.0]
-SEQ_MAX_PRESSURES = [5]
+SEQ_WAVE_TYPES = ["triangular"]
+SEQ_SEG1_PRESSURES = [3.0]
+SEQ_MAX_PRESSURES = [10]
 SEQ_WAVE_DURATION = 180.0  # Duration for each wave type in the sequence
 SEQ_COOLDOWN_DURATION = 20.0  # Duration of 2psi hold between waves
 SEQ_SEG1_REFILL_PERIOD = 100.0  # Target period for refilling Segment 1
@@ -1516,7 +1516,8 @@ class Controller:
 
         # Ask to save
         try:
-            save_input = input("Save experiment data? [Y/n]: ").strip().lower()
+            save_input = "y"
+            # save_input = input("Save experiment data? [Y/n]: ").strip().lower()
             save = save_input not in ("n", "no")
         except (EOFError, KeyboardInterrupt):
             save = True  # Default to save on interrupt during prompt
