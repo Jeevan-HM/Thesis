@@ -82,8 +82,8 @@ WAVE_FUNCTION = "sequence"  # "sequence", "axial", "circular", "triangular", "st
 
 # Sequence Configuration
 # SEQ_WAVE_TYPES = ["axial", "circular", "triangular"]
-SEQ_WAVE_TYPES = ["triangular"]
-SEQ_SEG1_PRESSURES = [3.0]
+SEQ_WAVE_TYPES = ["axial"]
+SEQ_SEG1_PRESSURES = [2.0]
 SEQ_MAX_PRESSURES = [10]
 SEQ_WAVE_DURATION = 180.0  # Duration for each wave type in the sequence
 SEQ_COOLDOWN_DURATION = 5.0  # Duration of 2psi hold between waves

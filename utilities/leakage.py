@@ -134,13 +134,8 @@ class LeakageTest:
             elapsed = time.time() - start_time
             sensors = None
 
-            # Stop pumping (set target to 0) after stabilization time
-            current_target_pressure = (
-                self.target_pressure if elapsed < LEAKAGE_STABILIZATION_TIME else 0.0
-            )
-
             for pump in self.pumps:
-                result = pump.send_pressure_read_sensors(current_target_pressure)
+                result = pump.send_pressure_read_sensors(self.target_pressure)
                 if pump.arduino_id == self.sensor_id:
                     sensors = result
 
