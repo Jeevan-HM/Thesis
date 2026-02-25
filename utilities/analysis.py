@@ -89,6 +89,30 @@ def select_experiment():
     return latest[0], latest[1]
 
 
+def get_h5_experiment_by_name(target_exp_name):
+    """
+    Search for a specific experiment name in all HDF5 files.
+    Returns (h5_filepath, exp_name) if found, else (None, None).
+    """
+    if not os.path.exists(config.EXPERIMENTS_BASE_DIR):
+        print(f"Error: Directory {config.EXPERIMENTS_BASE_DIR} not found.")
+        return None, None
+
+    h5_files = [f for f in os.listdir(config.EXPERIMENTS_BASE_DIR) if f.endswith(".h5")]
+
+    for h5_file in h5_files:
+        filepath = os.path.join(config.EXPERIMENTS_BASE_DIR, h5_file)
+        try:
+            with h5py.File(filepath, "r") as f:
+                if target_exp_name in f:
+                    return filepath, target_exp_name
+        except Exception as e:
+            print(f"Warning: Could not read {filepath}: {e}")
+
+    print(f"Experiment '{target_exp_name}' not found in any HDF5 file.")
+    return None, None
+
+
 def load_h5_experiment(h5_file, exp_name):
     """Load experiment data from HDF5 and return as DataFrame."""
     with h5py.File(h5_file, "r") as f:

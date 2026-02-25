@@ -71,7 +71,7 @@ ARDUINO_PORTS = [10001, 10002, 10003, 10004, 10005, 10006, 10007, 10008]
 EXPERIMENT_DURATION = 0.0  # Will be calculated below
 RAMPDOWN_DURATION = 5.0  # seconds to ramp down all pressures to zero
 CALIBRATION_PSI = 0.0  # Target PSI for sensor calibration checking
-CALIBRATION_STABILIZATION_TIME = 10.0  # Seconds to wait before measuring
+CALIBRATION_STABILIZATION_TIME = 0.0  # Seconds to wait before measuring
 
 
 # Desired base pressures (one per Arduino ID, in PSI)
@@ -83,8 +83,8 @@ WAVE_FUNCTION = "sequence"  # "sequence", "axial", "circular", "triangular", "st
 # Sequence Configuration
 # SEQ_WAVE_TYPES = ["axial", "circular", "triangular"]
 SEQ_WAVE_TYPES = ["axial"]
-SEQ_SEG1_PRESSURES = [2.0]
-SEQ_MAX_PRESSURES = [10]
+SEQ_SEG1_PRESSURES = [1.0, 2.0, 3.0, 4.0, 5.0]
+SEQ_MAX_PRESSURES = [10.0]
 SEQ_WAVE_DURATION = 180.0  # Duration for each wave type in the sequence
 SEQ_COOLDOWN_DURATION = 5.0  # Duration of 2psi hold between waves
 SEQ_SEG1_REFILL_PERIOD = 100.0  # Target period for refilling Segment 1
@@ -596,7 +596,7 @@ class DataLogger:
 
     # ---------------- public API ----------------
 
-    def start(self):
+    def start(self, trial_name: Optional[str] = None):
         now = datetime.datetime.now()
         folder = "experiments"
         os.makedirs(folder, exist_ok=True)
@@ -635,7 +635,11 @@ class DataLogger:
 
         # Create experiment name
         date_str = now.strftime("%b%d_%Hh%Mm")
-        self.exp_group_name = f"exp_{exp_num:03d}_{WAVE_FUNCTION}_{date_str}"
+        if trial_name:
+            self.exp_group_name = trial_name
+        else:
+            self.exp_group_name = f"exp_{exp_num:03d}_{WAVE_FUNCTION}_{date_str}"
+
         self.start_time = time.time()
         self.start_time_ns = time.perf_counter_ns()
 
@@ -883,10 +887,13 @@ class DataLogger:
 class Controller:
     def __init__(
         self,
+        arduinos: ArduinoManager,
+        trial_name: Optional[str] = None,
         refill_mode: str = "periodic",
         refill_period: float = SEQ_SEG1_REFILL_PERIOD,
     ) -> None:
-        self.arduinos = ArduinoManager()
+        self.arduinos = arduinos
+        self.trial_name = trial_name
         self.logger = DataLogger()
         self.mocap: Optional[MocapManager] = None
 
@@ -933,10 +940,6 @@ class Controller:
         fig.tight_layout()
 
     def initialize(self) -> bool:
-        logger.info("Connecting Arduinos...")
-        self.arduinos.connect()
-        logger.info("Arduinos connected.")
-
         if USE_MOCAP and HAS_ZMQ:
             self.mocap = MocapManager()
             if self.mocap.connect():
@@ -945,30 +948,7 @@ class Controller:
                 logger.warning("Mocap requested but unavailable; continuing without.")
                 self.mocap = None
 
-        # --- Calibration Prompt ---
-        try:
-            print("\n" + "=" * 40)
-            cal_input = "y"
-            # cal_input = (
-            #     input(f"Calibrate sensors at {CALIBRATION_PSI} PSI? [y/N]: ")
-            #     .strip()
-            #     .lower()
-            # )
-            if cal_input == "y":
-                self.arduinos.calibrate(target_psi=CALIBRATION_PSI)
-                # Ramp down after calibration
-                logger.info("Ramping down after calibration...")
-                self.arduinos.ramp_down(
-                    3.0, initial_pressures=[CALIBRATION_PSI] * len(ARDUINO_IDS)
-                )
-                logger.info("Calibration complete. System vented.")
-            else:
-                logger.info("Skipping calibration.")
-            print("=" * 40 + "\n")
-        except (EOFError, KeyboardInterrupt):
-            logger.info("Input interrupted, skipping calibration.")
-
-        self.logger.start()
+        self.logger.start(self.trial_name)
         self.running = True
 
         # Start threads
@@ -1087,6 +1067,19 @@ class Controller:
                 }
             )
             simulated_time += 10.0
+
+            # Wait period before actuation
+            playlist.append(
+                {
+                    "wave": "prefill_wait",  # Hold prefill values for 10s
+                    "seg1": SEQ_SEG1_PRESSURES[0],
+                    "max_p": 0.0,
+                    "duration": 10.0,
+                    "offset": 0.0,
+                }
+            )
+            simulated_time += 10.0
+
             # Reset next refill target
             next_refill_time = simulated_time + self.refill_period
 
@@ -1170,8 +1163,8 @@ class Controller:
                 for i in range(1, len(ARDUINO_IDS)):
                     desired[i] = last_wave_pressures[i]
 
-            elif w_type == "initial_fill":
-                # Initial fill: Segment 1 to SEQ_SEG1_PRESSURES, others to TARGET_PRESSURES
+            elif w_type in ("initial_fill", "prefill_wait"):
+                # Initial fill / Wait: Segment 1 to SEQ_SEG1_PRESSURES, others to TARGET_PRESSURES
                 desired[0] = seg1_target  # Segment 1 to SEQ_SEG1_PRESSURES[0]
                 for i in range(1, len(ARDUINO_IDS)):
                     desired[i] = TARGET_PRESSURES[i]
@@ -1486,31 +1479,15 @@ class Controller:
             ai_description = self.logger.generate_ai_description()
             description = ai_description  # Default to AI description
             print("Generated Description: ", ai_description)
-            try:
-                additional_desc = input(
-                    "Enter additional description (optional, press Enter to skip): "
-                ).strip()
-                if additional_desc:
-                    # Combine descriptions
-                    description = f"{ai_description}. {additional_desc}"
-            except (EOFError, KeyboardInterrupt):
-                print("\nSkipping additional description.")
-                # `description` is already set to ai_description, so we're good
-
+            # bypass input for automated run
+            # try:
+            #     additional_desc = input("...")
         else:
             # No AI available or configured, ask for manual description
-            try:
-                print("\n" + "=" * 60)
-                if not has_api_key and USE_GEMINI_AUTO_DESCRIPTION:
-                    print("AI descriptions enabled, but GEMINI_API_KEY is not set.")
-
-                description = input(
-                    "Enter experiment description (or press Enter to skip): "
-                ).strip()
-                if not description:
-                    description = "No description provided"
-            except (EOFError, KeyboardInterrupt):
-                description = "Interrupted - no description"
+            print("\n" + "=" * 60)
+            if not has_api_key and USE_GEMINI_AUTO_DESCRIPTION:
+                print("AI descriptions enabled, but GEMINI_API_KEY is not set.")
+            description = "No description provided"
 
         self.logger.stop(description)
 
@@ -1524,7 +1501,7 @@ class Controller:
             print("\nSaving by default.")
 
         self.logger.finalize(save)
-        self.arduinos.cleanup()
+        # self.arduinos.cleanup() is now handled in main()
         logger.info("Controller stopped and cleaned up.")
 
 
@@ -1546,13 +1523,11 @@ def main():
             print("[3] Constant 2 PSI (Seg 1)")
             print("[4] Initial Only (No refill during exp)")
 
-            ans = input("Choice [1/2/3/4] (Default: 4): ").strip()
+            # ans = input("Choice [1/2/3/4] (Default: 4): ").strip()
+            ans = "4"
             if ans == "1":
                 refill_mode = "periodic"
-                # Ask for period
-                ans = input(
-                    f"Refill period (seconds) [default: {SEQ_SEG1_REFILL_PERIOD}]: "
-                ).strip()
+                ans = "100"  # default
                 if ans:
                     try:
                         val = float(ans)
@@ -1564,58 +1539,101 @@ def main():
             elif ans == "2":
                 refill_mode = "end_of_wave"
                 print("Mode: End of Wave Profile (Refill after every wave)")
-                refill_period = float("inf")  # Disable periodic check
+                refill_period = float("inf")
             elif ans == "3":
                 refill_mode = "constant_2psi"
                 print("Mode: Constant 2 PSI on Segment 1")
-                refill_period = float("inf")  # Disable periodic check
+                refill_period = float("inf")
             elif ans == "" or ans == "4":
                 refill_mode = "initial_only"
                 print("Mode: Initial Refill Only (No mid-experiment refills)")
                 refill_period = float("inf")
             else:
-                # Default fallback if they typed something else, or kept it as periodic
-                # If we changed default to 2, we need to handle "else" carefully.
-                # Let's assume anything else is also periodic if they typed garbage?
-                # Or just loop back?
-                # Given the original code:
-                # `else: refill_mode = "periodic"` was the default for "1".
                 pass
 
     except (EOFError, KeyboardInterrupt):
         pass  # Use defaults
 
-    controller = Controller(refill_mode=refill_mode, refill_period=refill_period)
+    arduinos = ArduinoManager()
+    logger.info("Connecting Arduinos...")
+    if not arduinos.connect():
+        logger.error("Failed to connect to Arduinos.")
+        return 1
+    logger.info("Arduinos connected.")
+
+    # Calibration
+    try:
+        print("\n" + "=" * 40)
+        cal_input = "y"
+        if cal_input == "y":
+            arduinos.calibrate(target_psi=CALIBRATION_PSI)
+            logger.info("Ramping down after calibration...")
+            arduinos.ramp_down(
+                3.0, initial_pressures=[CALIBRATION_PSI] * len(ARDUINO_IDS)
+            )
+            logger.info("Calibration complete. System vented.")
+        else:
+            logger.info("Skipping calibration.")
+        print("=" * 40 + "\n")
+    except (EOFError, KeyboardInterrupt):
+        logger.info("Input interrupted, skipping calibration.")
+
+    # Global controller reference for Ctrl+C handler
+    global current_controller
+    current_controller = None
+
+    stop_all_trials = False
 
     def signal_handler(sig, frame):
+        nonlocal stop_all_trials
         print("\nCtrl+C pressed. Stopping gracefully...")
-        controller.running = False
+        stop_all_trials = True
+        if current_controller:
+            current_controller.running = False
 
     signal.signal(signal.SIGINT, signal_handler)
 
-    logger.info("=" * 50)
-    logger.info(f"Arduinos: {ARDUINO_IDS}")
-    logger.info(f"Pressures: {TARGET_PRESSURES} psi")
-    logger.info(f"Wave: {WAVE_FUNCTION}")
-    logger.info(f"Refill Mode: {refill_mode}")
-    if refill_mode == "periodic":
-        logger.info(f"Refill Period: {refill_period}s")
-    logger.info(f"Mocap: {'ON' if USE_MOCAP and HAS_ZMQ else 'OFF'}")
-    logger.info(
-        f"AI Descriptions: {'ON' if USE_GEMINI_AUTO_DESCRIPTION and GEMINI_AVAILABLE and GEMINI_API_KEY else 'OFF'}"
-    )
-    logger.info(f"Rampdown: {RAMPDOWN_DURATION}s")
-    logger.info("=" * 50)
+    for trial_idx in range(1, 6):
+        if stop_all_trials:
+            logger.info("Aborting remaining trials due to interrupt.")
+            break
 
-    try:
-        if not controller.initialize():
-            return 1
-        controller.run()
-    except Exception as e:
-        logger.error(f"Error: {e}")
-        return 1
+        trial_name = f"Trial-{trial_idx:02d} Axial 1-5"
 
-    logger.info("Done.")
+        logger.info("=" * 50)
+        logger.info(f"Starting {trial_name}")
+        logger.info(f"Arduinos: {ARDUINO_IDS}")
+        logger.info(f"Pressures: {TARGET_PRESSURES} psi")
+        logger.info(f"Wave: {WAVE_FUNCTION}")
+        logger.info(f"Refill Mode: {refill_mode}")
+        if refill_mode == "periodic":
+            logger.info(f"Refill Period: {refill_period}s")
+        logger.info(f"Mocap: {'ON' if USE_MOCAP and HAS_ZMQ else 'OFF'}")
+        logger.info(
+            f"AI Descriptions: {'ON' if USE_GEMINI_AUTO_DESCRIPTION and GEMINI_AVAILABLE and GEMINI_API_KEY else 'OFF'}"
+        )
+        logger.info(f"Rampdown: {RAMPDOWN_DURATION}s")
+        logger.info("=" * 50)
+
+        controller = Controller(
+            arduinos=arduinos,
+            trial_name=trial_name,
+            refill_mode=refill_mode,
+            refill_period=refill_period,
+        )
+        current_controller = controller
+
+        try:
+            if not controller.initialize():
+                logger.error(f"Failed to initialize {trial_name}")
+                break
+            controller.run()
+        except Exception as e:
+            logger.error(f"Error in {trial_name}: {e}")
+            break
+
+    arduinos.cleanup()
+    logger.info("Done with all trials.")
     return 0
 
 

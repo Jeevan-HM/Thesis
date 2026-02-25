@@ -34,6 +34,7 @@ Available Commands:
 
    Command:
    uv run utilities analyze --csv <path/to/file.csv>     # Analyze specific CSV
+   uv run utilities analyze --exp <experiment_name>      # Analyze specific HDF5 experiment
    uv run utilities analyze                              # Auto-select latest HDF5 experiment
 
    Example:
@@ -44,6 +45,7 @@ Available Commands:
 from . import config
 from .analysis import (
     get_experiment,
+    get_h5_experiment_by_name,
     load_csv_file,
     load_h5_experiment,
     quaternion_to_pitch,
@@ -64,6 +66,7 @@ __all__ = [
     "LeakageTest",
     "RealtimePlotter",
     "get_experiment",
+    "get_h5_experiment_by_name",
     "load_csv_file",
     "load_h5_experiment",
     "update_column_constants",

@@ -18,6 +18,7 @@ if __name__ == "__main__":
 from utilities import config
 from utilities.analysis import (
     get_experiment,
+    get_h5_experiment_by_name,
     load_csv_file,
     load_h5_experiment,
     quaternion_to_pitch,
@@ -36,7 +37,7 @@ from utilities.plotting import (
 logger = logging.getLogger("utilities.main")
 
 
-def run_analysis(csv_path=None):
+def run_analysis(csv_path=None, exp_name=None):
     # Check if user specified a CSV file
     if csv_path:
         # Load the specified CSV file
@@ -48,6 +49,18 @@ def run_analysis(csv_path=None):
         if data is None:
             return
         base_title = os.path.basename(csv_path)
+
+    elif exp_name:
+        # Search for experiment by name in HDF5 files
+        h5_file, name = get_h5_experiment_by_name(exp_name)
+        if not h5_file:
+            print(f"Error: Experiment '{exp_name}' not found in any HDF5 file.")
+            return
+
+        print(f"\nLoading HDF5: {name} from {os.path.basename(h5_file)}")
+        data = load_h5_experiment(h5_file, name)
+        base_title = name
+
     else:
         # Use the auto-selection logic
         result = get_experiment()
@@ -164,6 +177,9 @@ def main():
     parser_ana.add_argument(
         "--csv", type=str, help="Specific CSV file to analyze (optional)"
     )
+    parser_ana.add_argument(
+        "--exp", type=str, help="Specific HDF5 experiment name to analyze (optional)"
+    )
 
     args = parser.parse_args()
 
@@ -196,7 +212,7 @@ def main():
             test.cleanup()
 
     elif args.command == "analyze":
-        run_analysis(args.csv)
+        run_analysis(args.csv, args.exp)
 
     else:
         # Default behavior: Print help
