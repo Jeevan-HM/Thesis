@@ -1,6 +1,4 @@
 """
-Simplified Soft Robot Pressure Control System
-
 Configuration: Modify the variables below
 Run with: python main.py
 
