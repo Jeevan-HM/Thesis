@@ -6,3 +6,4 @@ colcon_ws/__pycache__
 __pycache__
 .vscode/
 .env
+.DS_Store
