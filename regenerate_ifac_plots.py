@@ -1897,7 +1897,7 @@ def make_fig2(
         linewidth=1.4,
         color="red",
     )
-    ax1.set_title("(a) Parallel")
+    ax1.set_title("(a)")
     ax1.set_xlabel("Time (s)")
     ax1.set_ylabel(r"$\theta$ (deg)")
     ax1.legend(loc="upper right", frameon=True, framealpha=0.9)
@@ -1917,7 +1917,7 @@ def make_fig2(
         linewidth=1.4,
         color="red",
     )
-    ax2.set_title("(b) Coupled")
+    ax2.set_title("(b)")
     ax2.set_xlabel("Time (s)")
     ax2.set_ylabel(r"$\theta$ (deg)")
     ax2.legend(loc="upper right", frameon=True, framealpha=0.9)
@@ -1953,7 +1953,7 @@ def make_fig2(
         ]
     )
     ax3.set_ylabel("NMSE")
-    ax3.set_title("(c) Angle-estimation NMSE by waveform and topology")
+    ax3.set_title("(c)")
 
     # Panel (d): MC (raw sensors, original params)
     mc_data = [
@@ -1963,7 +1963,7 @@ def make_fig2(
     ax4.boxplot(mc_data, tick_labels=["Coupled", "Parallel"])
     ax4.set_xlabel("Topology")
     ax4.set_ylabel("Memory Capacity (MC)")
-    ax4.set_title("(d) Memory Capacity (K=40)")
+    ax4.set_title("(d)")
 
     save_figure(fig, out_dir / "fig2_performance", dpi)
     plt.close(fig)
@@ -2007,13 +2007,13 @@ def make_fig3(trials: Sequence[TrialData], out_dir: Path, dpi: int) -> None:
     ax4 = fig.add_subplot(gs[1, 1])
 
     im1 = ax1.imshow(coupled_corr, vmin=0.50, vmax=1.00, cmap="viridis")
-    ax1.set_title("(a) Coupled inter-pouch correlation")
+    ax1.set_title("(a)")
     ax1.set_xticks(range(5), labels=[1, 2, 3, 4, 5])
     ax1.set_yticks(range(5), labels=[1, 2, 3, 4, 5])
     fig.colorbar(im1, ax=ax1, fraction=0.046, pad=0.03)
 
     im2 = ax2.imshow(parallel_corr, vmin=0.50, vmax=1.00, cmap="viridis")
-    ax2.set_title("(b) Parallel inter-pouch correlation")
+    ax2.set_title("(b)")
     ax2.set_xticks(range(5), labels=[1, 2, 3, 4, 5])
     ax2.set_yticks(range(5), labels=[1, 2, 3, 4, 5])
     fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.03)
@@ -2024,7 +2024,7 @@ def make_fig3(trials: Sequence[TrialData], out_dir: Path, dpi: int) -> None:
     ax3.set_ylim(0.90, 1.0005)
     ax3.set_xlabel("Number of PCs")
     ax3.set_ylabel("Cumulative variance")
-    ax3.set_title("(c) PCA cumulative variance")
+    ax3.set_title("(c)")
     ax3.legend(loc="best", frameon=True, framealpha=0.9)
 
     # Match the bundled figure style: same color per pouch, dashed=parallel, solid=coupled.
@@ -2059,7 +2059,7 @@ def make_fig3(trials: Sequence[TrialData], out_dir: Path, dpi: int) -> None:
     )
     ax4.add_artist(leg1)
     ax4.legend(loc="upper left", fontsize=FONT_SIZE_LEGEND, ncol=3, framealpha=0.9)
-    ax4.set_title(r"(d) Cross-correlation pouch vs $\theta$")
+    ax4.set_title(r"(d)")
     ax4.set_xlabel("Lag (s)    (positive: pouch leads)")
     ax4.set_ylabel("Corr.")
 
