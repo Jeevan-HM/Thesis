@@ -9,5 +9,5 @@ wheels/
 # Virtual environments
 .venv
 
-# Output
-output/
+# Output (now tracked)
+# output/

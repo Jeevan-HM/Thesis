@@ -28,6 +28,10 @@ uv run demo.py
 ```
 All generated plots and videos will be saved into the `output/` directory.
 
+**Example Video Output (Circular Trajectory):**
+
+https://github.com/Jeevan-HM/Soft-Robotic-Arm/raw/simulation/output/soft_arm_demo.mp4
+
 ---
 
 ## 1. Physical Architecture
