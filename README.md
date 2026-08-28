@@ -63,28 +63,33 @@ Each of the 5 floor levels consists of a nested rigid body with:
 - **Goal:** Analyze dynamic response to an instantaneous command.
 - **Waveform:** 3.0 psi step on Seg 1 (all 5 floors) starting at t=1.0s.
 - **Analysis:** Demonstrates the effect of stiffness-modulating pre-inflation (0.0 psi vs 2.2 psi). Higher pre-inflation leads to a stiffer arm, resulting in smaller tip deflection.
-![Step Response](output/step_response.png)
+
+![Step Response](docs/step_response.png)
 
 ### Segment-Local Actuation
 - **Goal:** Verify multi-segment symmetry and independent bending directions.
 - **Waveform:** Independent 3.0 psi constant commands delivered sequentially to each segment (Seg 1 → Seg 2 → Seg 3 → Seg 4).
 - **Analysis:** Results map perfectly to expected Cartesian axes (East, North, West, South) with symmetric deflection magnitudes (~2.2 cm).
-![Segment Local Actuation](output/segment_local.png)
+
+![Segment Local Actuation](docs/segment_local.png)
 
 ### Axial Extension / Single Segment Oscillation
 - **Goal:** Validate passive compression and dynamic axial coupling.
 - **Waveform:** 0.5 Hz sine wave on Seg 4 only. Amplitude = 3.6 psi, DC Offset = 3.6 psi (pressure bounded 0-7.2 psi). Segs 1-3 remain off (0 psi).
 - **Analysis:** Seg 4 expands axially while structurally coupling forces compress the opposite Seg 2, causing the arm to oscillate cleanly in the Seg 4–Seg 2 plane.
-![Axial Extension](output/axial_extension.png)
+
+![Axial Extension](docs/axial_extension.png)
 
 ### Circular Trajectory
 - **Goal:** Verify smoothly rotating bending moments for trajectory tracking.
 - **Waveform:** Phase-shifted cosine pressure commands to all segments (0.4 Hz orbit frequency). Amplitude = 1.5 psi, DC Offset = 1.7 psi.
 - **Analysis:** Tip accurately traces a circle in the XY plane.
-![Circular Trajectory](output/tip_circle.png)
+
+![Circular Trajectory](docs/tip_circle.png)
 
 ### Triangular Trajectory
 - **Goal:** Verify tracking of sharp transitions and straight-line Cartesian paths between vertices.
 - **Waveform:** Target coordinates (X, Y) are linearly interpolated between 3 vertices (equilateral triangle) and projected onto the column axes. 2.5s per triangle edge. Peak amplitude = 2.2 psi.
 - **Analysis:** Proves the parallel multi-column architecture can reliably compose complex target shapes.
-![Triangular Trajectory](output/tip_triangle.png)
+
+![Triangular Trajectory](docs/tip_triangle.png)
