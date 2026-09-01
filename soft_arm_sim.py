@@ -38,6 +38,9 @@ Design notes
   coupling (arm bending toward col s squeezes its pouches) + extension + noise.
 """
 
+import csv
+from pathlib import Path
+
 import numpy as np
 import mujoco
 
@@ -82,18 +85,25 @@ class SoftArmSim:
         # Pressurising column s produces bending in that direction.
         phis = cfg.col_azimuths()  # (n_segments,)
         self.col_axes = np.stack([-np.sin(phis), np.cos(phis)], axis=1)  # (n_seg, 2)
+        if cfg.hang_down:
+            self.col_axes = -self.col_axes  # invert bending direction for downward arm
 
         # p_actual[s, k] = current pouch pressure in column s, floor k [psi]
         self.p_actual = np.zeros((cfg.n_segments, cfg.n_pouches))
         self.p_pre = 0.0
         mujoco.mj_forward(self.model, self.data)
+
+        # ── Pressure logging ──────────────────────────────────────────────
+        self._pressure_log: list[dict] = []   # [{time, p_cmd, p_actual}, ...]
         self._renderer = None
 
     # ──────────────────────────────────────────────────────────── API ──────
-    def reset(self) -> dict:
+    def reset(self, clear_log: bool = True) -> dict:
         mujoco.mj_resetData(self.model, self.data)
         self.p_actual[:] = 0.0
         mujoco.mj_forward(self.model, self.data)
+        if clear_log:
+            self._pressure_log.clear()
         return self.observe()
 
     def set_pre_inflation(self, p_pre_psi: float) -> None:
@@ -136,6 +146,14 @@ class SoftArmSim:
             self.p_actual += alpha * (p_cmd - self.p_actual)
             self._apply_pressure_wrench()
             mujoco.mj_step(self.model, self.data)
+
+        # Log the commanded and actual pressures for this tick
+        self._pressure_log.append({
+            "time": self.data.time,
+            "p_cmd": p_cmd.copy(),        # (4, 5) final clipped command incl. pre-inflation
+            "p_actual": self.p_actual.copy(),  # (4, 5) actual after pneumatic lag
+        })
+
         return self.observe()
 
     def observe(self) -> dict:
@@ -149,6 +167,65 @@ class SoftArmSim:
             "p_actual": self.p_actual.copy(),
             "q": self.data.qpos.copy(),
         }
+
+    # ──────────────────────────────────────────── pressure log access ──────
+    def get_pressure_log(self) -> dict:
+        """Return the pressure log as numpy arrays.
+
+        Returns dict with:
+          time      — (N,)       timestamps [s]
+          p_cmd     — (N, 4, 5)  commanded pressures [psi] (incl. pre-inflation)
+          p_actual  — (N, 4, 5)  actual pouch pressures after pneumatic lag [psi]
+        """
+        if not self._pressure_log:
+            empty = lambda *s: np.empty((0, *s))
+            return {"time": np.array([]),
+                    "p_cmd": empty(self.cfg.n_segments, self.cfg.n_pouches),
+                    "p_actual": empty(self.cfg.n_segments, self.cfg.n_pouches)}
+        return {
+            "time": np.array([r["time"] for r in self._pressure_log]),
+            "p_cmd": np.array([r["p_cmd"] for r in self._pressure_log]),
+            "p_actual": np.array([r["p_actual"] for r in self._pressure_log]),
+        }
+
+    def save_pressure_log(self, path: str | Path = "pressure_log.csv",
+                          which: str = "p_cmd") -> Path:
+        """Export the pressure log as a flat CSV file.
+
+        Parameters
+        ----------
+        path : str or Path
+            Output file path.
+        which : str
+            'p_cmd' for commanded pressures (default — use this to replay on
+            the physical robot), or 'p_actual' for actual pressures after
+            pneumatic lag.
+
+        CSV columns
+        -----------
+        time, col0_lv0, col0_lv1, …, col0_lv4, col1_lv0, …, col3_lv4
+        (1 + 20 = 21 columns)
+        """
+        log = self.get_pressure_log()
+        data = log[which]              # (N, 4, 5)
+        times = log["time"]            # (N,)
+        n = len(times)
+        flat = data.reshape(n, -1)     # (N, 20)
+
+        header = ["time"]
+        for s in range(self.cfg.n_segments):
+            for k in range(self.cfg.n_pouches):
+                header.append(f"col{s}_lv{k}")
+
+        path = Path(path)
+        with open(path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(header)
+            for i in range(n):
+                writer.writerow([f"{times[i]:.6f}"] +
+                                [f"{v:.4f}" for v in flat[i]])
+        print(f"Saved {n} pressure records to {path}")
+        return path
 
     # ────────────────────────────────────────────────────── internals ──────
     def _apply_pressure_wrench(self) -> None:
@@ -238,3 +315,10 @@ if __name__ == "__main__":
     for _ in range(200):
         obs = sim.step(P)
     print("tip after symmetric (axial):", np.round(obs["tip_pos"], 4))
+
+    # Save pressure log for replay on physical robot
+    log_path = sim.save_pressure_log("output/pressure_log.csv")
+    log = sim.get_pressure_log()
+    print(f"Logged {len(log['time'])} ticks, "
+          f"duration {log['time'][-1]:.2f} s, "
+          f"shape p_cmd={log['p_cmd'].shape}")

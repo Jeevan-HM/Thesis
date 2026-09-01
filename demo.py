@@ -208,6 +208,8 @@ def single_segment_axial(video=True):
         imageio.mimsave(f"{OUT}/axial_demo.mp4", frames, fps=33, quality=8)
         print(f"saved {OUT}/axial_demo.mp4 ({len(frames)} frames)")
 
+    sim.save_pressure_log(f"{OUT}/pressure_axial.csv")
+
 
 # ────────────────────────────────────────────── 4. Circular trajectory ──────
 def circle_demo(video=True):
@@ -247,6 +249,8 @@ def circle_demo(video=True):
     if video:
         imageio.mimsave(f"{OUT}/soft_arm_demo.mp4", frames, fps=33, quality=8)
         print(f"saved {OUT}/soft_arm_demo.mp4 ({len(frames)} frames)")
+
+    sim.save_pressure_log(f"{OUT}/pressure_circle.csv")
 
 
 # ────────────────────────────────────────────── 5. Triangle trajectory ──────
@@ -311,6 +315,8 @@ def triangle_demo(video=True):
     if video and frames:
         imageio.mimsave(f"{OUT}/triangle_demo.mp4", frames, fps=33, quality=8)
         print(f"saved {OUT}/triangle_demo.mp4 ({len(frames)} frames)")
+
+    sim.save_pressure_log(f"{OUT}/pressure_triangle.csv")
 
 
 # ──────────────────────────────────────────────── 6. PRC sensor check ───────
